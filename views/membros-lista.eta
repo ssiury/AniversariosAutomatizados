@@ -1,0 +1,35 @@
+<% layout('./layout', { titulo: 'Membros' }) %>
+<div class="titulo-acoes">
+  <h1>Membros</h1>
+  <a class="botao" href="/membros/novo">+ Novo membro</a>
+</div>
+
+<form class="filtros" method="get" action="/membros"
+      hx-get="/membros" hx-target="#linhas" hx-push-url="true"
+      hx-trigger="input changed delay:300ms from:input[name=busca], change">
+  <input type="search" name="busca" placeholder="Buscar por nome" value="<%= it.filtros.busca %>">
+  <select name="sexo">
+    <option value="">Todos os sexos</option>
+    <option value="M" <%= it.filtros.sexo === 'M' ? 'selected' : '' %>>Masculino</option>
+    <option value="F" <%= it.filtros.sexo === 'F' ? 'selected' : '' %>>Feminino</option>
+  </select>
+  <select name="situacao">
+    <option value="">Ativos e inativos</option>
+    <option value="ativo" <%= it.filtros.situacao === 'ativo' ? 'selected' : '' %>>Somente ativos</option>
+    <option value="inativo" <%= it.filtros.situacao === 'inativo' ? 'selected' : '' %>>Somente inativos</option>
+  </select>
+  <select name="mes">
+    <option value="">Todos os meses</option>
+    <% for (let m = 1; m <= 12; m++) { %>
+      <option value="<%= m %>" <%= Number(it.filtros.mes) === m ? 'selected' : '' %>><%= it.h.nomeMes(m) %></option>
+    <% } %>
+  </select>
+  <noscript><button class="botao">Filtrar</button></noscript>
+</form>
+
+<div class="tabela-rolavel">
+<table class="membros">
+  <thead><tr><th>Nome</th><th>Nascimento</th><th>Idade</th><th>Sexo</th><th>Ativo</th><th>Template</th></tr></thead>
+  <tbody id="linhas"><%~ include('./membros-linhas', it) %></tbody>
+</table>
+</div>

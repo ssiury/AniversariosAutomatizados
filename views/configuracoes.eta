@@ -1,0 +1,49 @@
+<% layout('./layout', { titulo: 'Configurações' }) %>
+<% const c = it.cfg; const e = it.erros || {}; %>
+<h1>Configurações</h1>
+<% if (it.ok) { %><p class="alerta sucesso">Configurações salvas.</p><% } %>
+
+<div class="colunas">
+  <section class="cartao">
+    <h2>WhatsApp</h2>
+    <%~ include('./fragmento-whatsapp', { wa: it.wa }) %>
+  </section>
+
+  <form class="cartao pilha" method="post" action="/configuracoes">
+    <h2>Envio</h2>
+    <label class="inline"><input type="checkbox" name="envio_ativo" <%= c.envio_ativo === '1' ? 'checked' : '' %>> Envio automático ativo</label>
+    <label>Grupo de destino
+      <% if (it.grupos.length) { %>
+        <select name="grupo_whatsapp">
+          <option value="">— escolha um grupo —</option>
+          <% for (const g of it.grupos) { %>
+            <option value="<%= g.id %>" <%= g.id === c.grupo_whatsapp ? 'selected' : '' %>><%= g.nome %></option>
+          <% } %>
+        </select>
+      <% } else { %>
+        <input value="<%= c.grupo_whatsapp_nome || c.grupo_whatsapp || 'Nenhum' %>" disabled>
+        <small class="sutil"><%= it.erroGrupos ? 'Erro ao listar grupos: ' + it.erroGrupos : 'Conecte o WhatsApp para escolher o grupo.' %></small>
+      <% } %>
+    </label>
+    <label>Horário do envio
+      <input type="time" name="horario_envio" value="<%= c.horario_envio %>" required>
+      <% if (e.horario_envio) { %><small class="erro"><%= e.horario_envio %></small><% } %>
+    </label>
+    <label>Idade limite do template infantil (abaixo de)
+      <input type="number" name="idade_limite_infantil" min="1" max="18" value="<%= c.idade_limite_infantil %>" required>
+      <% if (e.idade_limite_infantil) { %><small class="erro"><%= e.idade_limite_infantil %></small><% } %>
+    </label>
+    <label>Nome do ministério
+      <input name="nome_ministerio" value="<%= c.nome_ministerio %>" required maxlength="80">
+      <% if (e.nome_ministerio) { %><small class="erro"><%= e.nome_ministerio %></small><% } %>
+    </label>
+    <button class="botao">Salvar</button>
+  </form>
+</div>
+
+<section class="cartao">
+  <h2>Disparo manual</h2>
+  <p class="sutil">O sistema verifica os aniversariantes a cada 15 minutos depois do horário configurado. Use o botão para rodar um ciclo agora, ignorando o horário (quem já recebeu hoje não recebe de novo).</p>
+  <button class="botao" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this">Rodar ciclo agora</button>
+  <div id="resultado-ciclo"></div>
+</section>

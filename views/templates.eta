@@ -1,0 +1,29 @@
+<% layout('./layout', { titulo: 'Templates' }) %>
+<h1>Templates</h1>
+<p class="sutil">Regra: template fixo do membro → infantil (abaixo da idade limite) → feminino → masculino.
+  Na mensagem do WhatsApp, use <code>{nome}</code>, <code>{idade}</code>, <code>{data}</code> e <code>{ministerio}</code>.</p>
+
+<div class="grade-templates">
+<% for (const t of it.lista) { %>
+  <form id="template-<%= t.id %>" class="cartao pilha" method="post" action="/templates/<%= t.id %>" enctype="multipart/form-data">
+    <h2><span class="tag <%= t.tipo %>"><%= t.tipo %></span></h2>
+    <% if (Number(it.ok) === t.id) { %><p class="alerta sucesso">Template salvo.</p><% } %>
+    <% if (Number(it.erro) === t.id) { %><p class="alerta erro">Não foi possível ler a imagem de fundo.</p><% } %>
+    <img class="previa" src="/templates/<%= t.id %>/previa.jpg?w=400&v=<%= Date.now() %>" alt="Prévia do template <%= t.nome %>">
+    <label>Nome no painel <input name="nome" value="<%= t.nome %>" required></label>
+    <label>Fundo (1080×1350 px)
+      <input type="file" name="fundo" accept="image/*">
+      <small class="sutil"><%= t.fundo ? 'Fundo personalizado cadastrado.' : 'Usando o fundo padrão com a cor de destaque.' %></small>
+    </label>
+    <% if (t.fundo) { %><label class="inline"><input type="checkbox" name="remover_fundo"> Voltar ao fundo padrão</label><% } %>
+    <label>Cor de destaque <input type="color" name="cor_destaque" value="<%= t.cor_destaque %>"></label>
+    <label>Frase da arte (até 2 linhas)
+      <textarea name="mensagem_arte" rows="2" maxlength="80"><%= t.mensagem_arte %></textarea>
+    </label>
+    <label>Mensagem do WhatsApp
+      <textarea name="legenda" rows="5" maxlength="1000"><%= t.legenda %></textarea>
+    </label>
+    <button class="botao">Salvar <%= t.nome %></button>
+  </form>
+<% } %>
+</div>

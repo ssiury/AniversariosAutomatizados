@@ -1,0 +1,91 @@
+<% layout('./layout', { titulo: 'Dashboard' }) %>
+<% const rotuloStatus = { aguardando: 'Aguardando', enviado: 'Enviado', falhou: 'Falhou' }; %>
+<h1>Dashboard</h1>
+
+<section class="indicadores">
+  <div class="indicador"><span class="valor"><%= it.deHoje.length %></span><span>aniversariante(s) hoje</span></div>
+  <div class="indicador"><span class="valor"><%= it.doMes.length %></span><span>no mês de <%= it.h.nomeMes(it.mesAtual) %></span></div>
+  <div class="indicador"><span class="valor"><%= it.totais.ativos %></span><span>membros ativos · <%= it.totais.inativos %> inativo(s)</span></div>
+  <div class="indicador">
+    <span class="valor pequeno">♂ <%= it.porTemplate.masculino %> · ♀ <%= it.porTemplate.feminino %> · 🧒 <%= it.porTemplate.infantil %></span>
+    <span>membros por template</span>
+  </div>
+</section>
+
+<section class="cartao">
+  <h2>Aniversariantes de hoje</h2>
+  <% if (!it.deHoje.length) { %>
+    <p class="sutil">Ninguém faz aniversário hoje.</p>
+  <% } else { %>
+    <div class="grade-artes">
+      <% for (const m of it.deHoje) { %>
+        <a class="arte" href="/membros/<%= m.id %>">
+          <img src="/membros/<%= m.id %>/previa.jpg?w=320" alt="Prévia da arte de <%= m.nome %>" loading="lazy">
+          <strong><%= m.nome %></strong>
+          <span><%= m.idade %> anos · template <%= m.template?.nome %></span>
+          <span class="selo <%= m.situacao.status %>"><%= rotuloStatus[m.situacao.status] %><%= m.situacao.status === 'falhou' ? ` (${m.situacao.falhas}/3)` : '' %></span>
+        </a>
+      <% } %>
+    </div>
+  <% } %>
+</section>
+
+<div class="colunas">
+  <section class="cartao">
+    <h2>Próximos 7 dias</h2>
+    <% if (!it.proximos7.length) { %><p class="sutil">Nenhum aniversário nos próximos 7 dias.</p><% } else { %>
+    <table>
+      <thead><tr><th>Nome</th><th>Data</th><th>Faltam</th></tr></thead>
+      <tbody>
+      <% for (const m of it.proximos7) { %>
+        <tr><td><a href="/membros/<%= m.id %>"><%= m.nome %></a></td>
+          <td><%= it.h.formatarBR(m.proximo_aniversario).slice(0, 5) %></td>
+          <td><%= m.dias_ate %> dia<%= m.dias_ate > 1 ? 's' : '' %></td></tr>
+      <% } %>
+      </tbody>
+    </table>
+    <% } %>
+  </section>
+
+  <section class="cartao">
+    <h2>Saúde do sistema</h2>
+    <ul class="saude">
+      <li>WhatsApp:
+        <% if (it.saude.whatsapp.conectado) { %><span class="selo enviado">Conectado</span>
+        <% } else { %><span class="selo falhou">Desconectado</span> <a href="/configuracoes">conectar</a><% } %></li>
+      <li>Grupo: <% if (it.saude.grupo) { %><strong><%= it.saude.grupo %></strong><% } else { %><span class="selo falhou">Não configurado</span><% } %></li>
+      <li>Próximo envio: <strong><%= it.saude.proximoEnvio %></strong></li>
+    </ul>
+  </section>
+</div>
+
+<div class="colunas">
+  <section class="cartao">
+    <h2>Aniversariantes de <%= it.h.nomeMes(it.mesAtual) %> (<%= it.doMes.length %>)</h2>
+    <% if (!it.doMes.length) { %><p class="sutil">Nenhum aniversariante neste mês.</p><% } else { %>
+    <ul class="lista-simples">
+      <% for (const m of it.doMes) { %>
+        <li><span class="dia"><%= it.h.formatarBR(m.data_nascimento).slice(0, 5) %></span> <a href="/membros/<%= m.id %>"><%= m.nome %></a></li>
+      <% } %>
+    </ul>
+    <% } %>
+  </section>
+
+  <section class="cartao">
+    <h2>Últimos envios</h2>
+    <% if (!it.ultimos.length) { %><p class="sutil">Nenhum envio ainda.</p><% } else { %>
+    <table>
+      <tbody>
+      <% for (const e of it.ultimos) { %>
+        <tr class="<%= e.status === 'falhou' ? 'linha-falha' : '' %>">
+          <td><%= it.h.formatarDataHora(e.criado_em) %></td>
+          <td><%= e.membro_nome %></td>
+          <td><span class="selo <%= e.status %>"><%= e.status %></span></td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table>
+    <p><a href="/historico">Ver histórico completo →</a></p>
+    <% } %>
+  </section>
+</div>

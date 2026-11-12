@@ -1,0 +1,11 @@
+<% layout('./layout', { titulo: 'Entrar' }) %>
+<div class="login">
+  <h1>🎂 Aniversários</h1>
+  <p class="sutil">Ministério de Mídia</p>
+  <% if (it.erro) { %><p class="alerta erro"><%= it.erro %></p><% } %>
+  <form method="post" action="/login" class="pilha">
+    <label>Usuário <input name="usuario" autocomplete="username" required autofocus></label>
+    <label>Senha <input name="senha" type="password" autocomplete="current-password" required></label>
+    <button class="botao">Entrar</button>
+  </form>
+</div>

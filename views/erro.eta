@@ -1,0 +1,6 @@
+<% layout('./layout', { titulo: it.titulo }) %>
+<div class="cartao">
+  <h1><%= it.titulo %></h1>
+  <p><%= it.mensagem %></p>
+  <p><a href="/">Voltar ao início</a></p>
+</div>
