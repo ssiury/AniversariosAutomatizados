@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Sistema** | Aniversários Automatizados — Ministério de Mídia |
-| **Versão do documento** | 1.1 |
+| **Versão do documento** | 1.2 |
 | **Última revisão** | 16/11/2026 |
 | **Autor** | Iury Sousa dos Santos |
 | **Status** | Vigente |
@@ -27,7 +27,7 @@
 11. [Segurança](#11-segurança)
 12. [Confiabilidade e operação](#12-confiabilidade-e-operação)
 13. [Configuração](#13-configuração)
-14. [Estratégia de testes](#14-estratégia-de-testes)
+14. [Qualidade e testes](#14-qualidade-e-testes)
 15. [Riscos e dívida técnica](#15-riscos-e-dívida-técnica)
 16. [Questões em aberto](#16-questões-em-aberto)
 17. [Glossário](#17-glossário)
@@ -84,7 +84,8 @@ do ministério, sem intervenção manual.
 | RNF-03 | Resiliência | A falha de um envio não interrompe os demais; um reinício não perde o envio do dia |
 | RNF-04 | Segurança | Painel acessível apenas com autenticação e somente por HTTPS |
 | RNF-05 | Manutenibilidade | Uma única pessoa consegue manter o sistema; sem etapa de build no front-end |
-| RNF-06 | Portabilidade | Implantação reproduzível com Docker Compose |
+| RNF-06 | Portabilidade | Implantação reproduzível com Docker Compose e imagem versionada |
+| RNF-07 | Observabilidade | Falhas de envio e quedas do WhatsApp geram alerta para o responsável |
 
 ### 2.3 Restrições
 
@@ -174,7 +175,33 @@ Cada decisão segue o formato contexto → decisão → consequências.
 - **Contexto:** HTTPS obrigatório, sem custo e com pouca configuração.
 - **Decisão:** dois contêineres, a aplicação e o Caddy como proxy reverso, que emite e renova o
   certificado Let's Encrypt automaticamente.
-- **Consequências:** o deploy se resume a `docker compose up -d --build`.
+- **Consequências:** o deploy se resume a baixar a imagem e subir os contêineres.
+
+### DA-08 — Fronteiras entre módulos verificadas pelo lint
+
+- **Contexto:** num monólito, a modularidade se perde aos poucos se nada a protege.
+- **Decisão:** cada módulo expõe só o seu `index.js`. Regras `no-restricted-imports` do ESLint
+  barram, no CI, imports de internals de outro módulo, caminhos relativos entre pastas e
+  dependências de `compartilhado/` para `modulos/`.
+- **Consequências:** a arquitetura descrita neste documento é verificada a cada push, e não só
+  combinada entre as pessoas.
+
+### DA-09 — Imagem compilada no CI e publicada no GHCR
+
+- **Contexto:** compilar módulos nativos numa VM de 1 GB exige swap e leva minutos.
+- **Decisão:** o GitHub Actions compila a imagem e a publica no GitHub Container Registry com as
+  tags `latest` e `sha-<commit>`. A VM só baixa a imagem.
+- **Consequências:** deploy rápido e reproduzível, com rollback por tag. A compilação na VM fica
+  como alternativa.
+
+### DA-10 — Monitoramento por "dead man's switch"
+
+- **Contexto:** um envio que não acontece não gera erro visível. Ninguém percebe até o aniversário passar.
+- **Decisão:** ao fim de cada ciclo, o sistema avisa um serviço externo (healthchecks.io ou
+  compatível) se está saudável. Sem aviso dentro do prazo, ou com um aviso de falha, o serviço
+  alerta o responsável.
+- **Consequências:** quedas do processo, da VM ou do WhatsApp geram alerta, inclusive antes do
+  horário de envio. O sistema não precisa de um servidor de e-mail.
 
 ---
 
@@ -184,28 +211,38 @@ Cada decisão segue o formato contexto → decisão → consequências.
 flowchart TB
     navegador(["Navegador do operador"])
     wa[("Servidores do WhatsApp")]
+    gh["GitHub Actions<br/>lint · tipos · testes · build"]
+    ghcr[("GHCR<br/>imagem latest / sha-*")]
+    hc["healthchecks.io<br/>alerta por e-mail/Telegram"]
+    nuvem[("Armazenamento externo<br/>rclone (ex.: bucket GCS)")]
 
-    subgraph vm["VM e2-micro · Google Cloud · Debian 12 · 1 GB RAM + 2 GB swap"]
+    subgraph vm["VM e2-micro · Google Cloud · Debian 12 · 1 GB RAM"]
         subgraph compose["Docker Compose"]
-            caddy["<b>caddy</b><br/>caddy:2.8-alpine · 128 MB<br/>portas 80 e 443"]
-            app["<b>app</b><br/>node:22-bookworm-slim · 600 MB<br/>porta 3000 (interna)"]
+            caddy["<b>caddy</b><br/>caddy:2.8.4-alpine · 128 MB<br/>portas 80 e 443"]
+            app["<b>app</b><br/>node:22-bookworm-slim · 600 MB<br/>somente leitura · sem capabilities"]
         end
         storage[("./storage<br/>dados.sqlite · fotos/ · fundos/<br/>artes/ · whatsapp/")]
-        backups[("./backups<br/>retenção de 30 dias")]
+        backups[("./backups<br/>30 dias")]
     end
 
+    gh -- "push na main" --> ghcr
+    ghcr -- "deploy/atualizar.sh" --> app
     navegador -- "HTTPS 443" --> caddy
-    caddy -- "HTTP · reverse_proxy app:3000" --> app
+    caddy -- "HTTP · app:3000" --> app
     app -- "volume" --- storage
     app -- "WebSocket TLS" --> wa
+    app -- "ping a cada ciclo" --> hc
     storage -. "deploy/backup.sh (cron)" .-> backups
+    backups -. "BACKUP_REMOTO" .-> nuvem
 ```
 
 | Elemento | Detalhe |
 | --- | --- |
-| Imagem da aplicação | Build em dois estágios: o primeiro compila os módulos nativos (`better-sqlite3`, `sharp`) e o segundo leva só o necessário, mais as fontes DejaVu e o `tzdata` |
-| Usuário | O contêiner roda como `node` (uid 1000), sem privilégios de root |
-| Healthcheck | `GET /saude` a cada minuto |
+| Imagem da aplicação | Build em dois estágios sobre `node:22.22.3-bookworm-slim` (versão exata). O primeiro compila os módulos nativos e o segundo leva só o necessário, mais as fontes DejaVu e o `tzdata` |
+| Código | Pertence ao `root`; a aplicação roda como `node` (uid 1000) e só escreve em `/app/storage` e `/tmp` |
+| Endurecimento | `read_only`, `tmpfs` em `/tmp`, `cap_drop: ALL`, `no-new-privileges` e `init` (o Node não roda como PID 1) |
+| Healthcheck | `GET /saude` a cada minuto, conferindo o banco. O Caddy só sobe depois que a aplicação fica saudável |
+| Logs | JSON estruturado, limitados a 3 arquivos de 10 MB por contêiner |
 | Persistência | `./storage` montado em `/app/storage`. Certificados do Caddy em volumes nomeados |
 | Fuso horário | `TZ=America/Sao_Paulo` na imagem e na VM |
 
@@ -227,78 +264,112 @@ flowchart TB
 
 ```
 src/
-├── server.js            Inicialização: storage, banco, HTTP, WhatsApp, agendador, encerramento
-├── app.js               Express: cabeçalhos de segurança, sessão, autenticação, rotas, erros
-├── config.js            Leitura e validação das variáveis de ambiente
-├── lib/
-│   ├── datas.js         Datas ISO, idade, aniversário (com a regra de 29/02)
-│   ├── upload.js        Multer em memória (imagens de até 10 MB)
-│   └── views.js         Motor Eta, helpers de formatação, detecção de requisição htmx
+├── server.js                 Inicialização: config, storage, banco, HTTP, WhatsApp, agendador
+├── app.js                    Express: segurança, logs, sessão, autenticação, rotas, erros
+├── config.js                 Leitura e validação das variáveis de ambiente
+├── tipos.d.ts                Extensões de tipo do Express (req.membro, req.template)
+├── compartilhado/            Infraestrutura sem regra de negócio
+│   ├── banco/
+│   │   ├── index.js          Conexão SQLite e migrador
+│   │   └── migracoes/        001_esquema_inicial.sql, 002_templates_padrao.sql, ...
+│   ├── datas.js              Datas ISO, idade, aniversário (com a regra de 29/02)
+│   ├── logger.js             Logger pino único
+│   ├── tipos.js              Tipos das linhas do banco (JSDoc)
+│   ├── upload.js             Multer em memória (imagens de até 10 MB)
+│   └── views.js              Motor Eta e helpers de formatação
 └── modulos/
-    ├── dados/           Conexão, migrações, valores padrão e repositórios
-    ├── membros/         Validação, campos calculados e rotas /membros
-    ├── templates/       Regra de escolha, legenda e rotas /templates
-    ├── arte/            Geração e normalização de imagens
-    ├── whatsapp/        Conexão Baileys e envio
-    ├── disparo/         Ciclo de envio e "Enviar agora"
-    ├── agendador/       Temporizador dos ciclos
-    └── painel/          Autenticação, dashboard, histórico e configurações
+    ├── membros/              index · rotas · servico · repositorio
+    ├── templates/            index · rotas · servico · repositorio · regra
+    ├── configuracao/         index · rotas · servico · repositorio
+    ├── disparo/              index · servico · repositorio (envios)
+    ├── painel/               auth · dashboard · rotas
+    ├── arte/                 index (geração de imagens)
+    ├── whatsapp/             index (conexão Baileys)
+    ├── agendador/            index (temporizador dos ciclos)
+    └── monitor/              index (aviso ao monitor externo)
+views/                        layout.eta, erro.eta e uma pasta por módulo
+test/
+├── unidade/                  Funções puras: datas, regra, config, serviços, migrações, monitor
+└── integracao/               Ciclo de disparo e rotas HTTP com banco em memória
 ```
+
+**Convenção dos arquivos de um módulo**
+
+| Arquivo | Papel | Quem pode importar |
+| --- | --- | --- |
+| `index.js` | API pública do módulo | Qualquer módulo |
+| `rotas.js` | HTTP: lê a requisição, chama o serviço e renderiza | Só o `app.js` |
+| `servico.js` | Regras de negócio e validação | O próprio módulo |
+| `repositorio.js` | SQL do módulo | O próprio módulo |
+
+Módulos pequenos (`arte`, `whatsapp`, `agendador`, `monitor`) mantêm tudo no `index.js`. Os imports
+usam os aliases `#config`, `#compartilhado/*` e `#modulos/*`, definidos em `package.json`. Essas
+regras são verificadas pelo ESLint (DA-08).
 
 ### 6.2 Dependências entre módulos
 
 ```mermaid
 flowchart TD
+    app["app.js<br/>(rotas)"]
+    agendador["agendador"]
     painel["painel"]
     membros["membros"]
     templates["templates"]
-    agendador["agendador"]
+    configuracao["configuracao"]
     disparo["disparo"]
     arte["arte"]
     whatsapp["whatsapp"]
-    dados[("dados")]
+    monitor["monitor"]
+    compartilhado[("compartilhado<br/>banco · datas · logger · views")]
 
+    app --> painel
+    app --> membros
+    app --> templates
+    app --> configuracao
     agendador --> disparo
+    agendador --> monitor
     agendador -. "evento 'conectado'" .-> whatsapp
-    painel --> disparo
-    painel --> whatsapp
     painel --> membros
-    membros --> disparo
-    membros --> arte
+    painel --> disparo
+    painel --> configuracao
+    painel --> whatsapp
     membros --> templates
-    templates --> arte
+    membros -. "rotas" .-> disparo
+    membros -. "rotas" .-> arte
+    templates --> configuracao
+    templates -. "rotas" .-> arte
+    configuracao -. "rotas" .-> disparo
+    configuracao -. "rotas" .-> whatsapp
+    disparo --> membros
     disparo --> templates
+    disparo --> configuracao
     disparo --> arte
     disparo --> whatsapp
-
-    painel --> dados
-    membros --> dados
-    templates --> dados
-    disparo --> dados
 ```
 
-As dependências seguem um único sentido: das camadas de entrada (`painel`, rotas de `membros` e
-`templates`, `agendador`) para a orquestração (`disparo`), e daí para os serviços (`arte`,
-`whatsapp`, `templates`) e para a persistência (`dados`). `arte` e `whatsapp` não dependem do
-banco, o que os mantém reutilizáveis e fáceis de testar.
+Todos os módulos usam `compartilhado/`, que não depende de nenhum deles. As setas tracejadas marcadas como "rotas" partem do `rotas.js` do módulo. Como as rotas só são
+importadas pelo `app.js`, essas setas nunca formam ciclos: nenhum `index.js`
+depende de um `rotas.js`. `arte`, `whatsapp` e `monitor` não acessam o banco, o que os mantém
+reutilizáveis e fáceis de testar.
 
 ### 6.3 Responsabilidades e interfaces públicas
 
-| Módulo | Responsabilidade | Interface pública |
+| Módulo | Responsabilidade | API pública (`index.js`) |
 | --- | --- | --- |
-| `dados` | Abrir o SQLite, aplicar migrações versionadas (`PRAGMA user_version`), semear templates e configurações padrão e expor os repositórios | `abrir`, `fechar`, `getDb`, `membros`, `templates`, `envios`, `configuracao` |
-| `membros` | Validar o formulário, calcular idade, próximo aniversário, dias restantes e template previsto | `validar`, `listarDetalhado`, `detalhar`, `rotasMembros` |
-| `templates` | Aplicar a regra de escolha e montar a legenda com as variáveis | `escolherTemplate`, `criarResolvedor`, `montarLegenda`, `rotasTemplates` |
+| `membros` | Cadastro, validação e campos calculados (idade, próximo aniversário, template previsto) | `validar`, `listarDetalhado`, `detalhar`, `obter`, `aniversariantesDoDia`, `contar` |
+| `templates` | Regra de escolha, legenda e edição dos templates | `escolherTemplate`, `montarLegenda`, `criarResolvedor`, `listar`, `obter` |
+| `configuracao` | Ajustes do painel, com valores padrão e validação | `todas`, `obter`, `definir`, `validar`, `CONFIG_PADRAO` |
+| `disparo` | Ciclo diário, "Enviar agora" e histórico de envios | `executarCiclo`, `enviarAgora`, `enviarParaMembro`, `situacaoDoDia`, `ultimosEnvios`, `listarEnvios`, `usarCanal`, `usarPausa` |
+| `painel` | Login, dashboard e histórico | — (só rotas) |
 | `arte` | Compor a arte e normalizar as imagens enviadas | `gerarArte`, `miniatura`, `salvarImagem`, `removerArquivo` |
-| `whatsapp` | Manter a conexão, gerar o QR Code, reconectar e enviar | `iniciar`, `status`, `enviarImagem`, `listarGrupos`, `desconectar`, `eventos` |
-| `disparo` | Decidir quem recebe, gerar, enviar e registrar cada tentativa | `executarCiclo`, `enviarAgora`, `enviarParaMembro`, `infoUltimoCiclo` |
+| `whatsapp` | Conexão, QR Code, reconexão e envio | `iniciar`, `status`, `enviarImagem`, `listarGrupos`, `desconectar`, `eventos` |
 | `agendador` | Disparar ciclos periodicamente e após a conexão do WhatsApp | `iniciar`, `parar`, `proximoCiclo` |
-| `painel` | Login, dashboard, histórico e configurações | `rotasAuth`, `exigirLogin`, `rotasPainel` |
+| `monitor` | Avisar o monitor externo do resultado de cada ciclo | `avaliarCiclo`, `reportarCiclo` |
 
-**Pontos de extensão.** O `disparo` recebe o canal de envio por injeção (`usarCanal`), e qualquer
-objeto com `status()` e `enviarImagem(jid, imagem, legenda)` serve. Os testes usam um canal falso,
-e trocar o Baileys por outra solução afeta só o módulo `whatsapp`. A pausa entre envios também é
-injetável (`usarPausa`).
+**Pontos de extensão.** O `disparo` recebe o canal de envio por injeção (`usarCanal`): qualquer
+objeto com `status()` e `enviarImagem(jid, imagem, legenda)` serve. Os testes usam um canal falso, e
+trocar o Baileys por outra solução afeta só o módulo `whatsapp`. A pausa entre envios também é
+injetável (`usarPausa`), e o `monitor` aceita a função de envio como parâmetro.
 
 ---
 
@@ -405,9 +476,19 @@ definidos em `CONFIG_PADRAO` (ver [§13.2](#132-configurações-do-painel)).
 
 ### 7.4 Migrações
 
-As migrações ficam no array `MIGRACOES` em `dados/index.js`. A versão aplicada é guardada em
-`PRAGMA user_version`, e cada migração roda numa transação. Para evoluir o esquema, acrescente
-um novo item ao final do array, sem nunca alterar os existentes.
+As migrações são arquivos `NNN_descricao.sql` em `src/compartilhado/banco/migracoes/`, aplicados
+em ordem na inicialização. A versão aplicada fica em `PRAGMA user_version`, e cada migração roda
+numa transação. O migrador recusa numeração fora de sequência.
+
+| Versão | Arquivo | Conteúdo |
+| --- | --- | --- |
+| 1 | `001_esquema_inicial.sql` | Tabelas, índices e restrições |
+| 2 | `002_templates_padrao.sql` | Os três templates (`INSERT OR IGNORE`: não altera bancos que já os têm) |
+
+Para evoluir o esquema, crie o próximo arquivo. Uma migração já publicada nunca é alterada.
+
+As configurações não são gravadas na criação do banco: chaves ausentes assumem os valores de
+`CONFIG_PADRAO` no momento da leitura.
 
 ---
 
@@ -476,7 +557,9 @@ Os textos são escapados antes de entrar no SVG, e os caminhos de arquivo são c
 
 O `agendador` executa o ciclo a cada `INTERVALO_CICLO_MIN` minutos (padrão 15), 10 segundos após a
 inicialização e 5 segundos após cada conexão do WhatsApp. Os ciclos nunca se sobrepõem: o próximo
-só é agendado quando o anterior termina, e uma trava (`emExecucao`) descarta chamadas concorrentes.
+só é agendado quando o anterior termina. Uma trava única, compartilhada com o "Enviar agora",
+impede dois envios simultâneos. Ao fim de cada ciclo, o resultado é enviado ao monitor externo
+(ver [§12.4](#124-observabilidade)).
 
 ```mermaid
 flowchart TD
@@ -540,6 +623,9 @@ O botão do cadastro do membro segue esta regra:
   conta como o envio oficial do dia (`status = 'enviado'`), e o ciclo automático não o repete.
 - **Em qualquer outro caso**: a arte do próximo aniversário é enviada como teste
   (`status = 'teste'`), sem interferir no envio automático.
+- **Se um ciclo estiver em andamento**, o botão responde que já existe um envio em andamento e pede
+  para tentar em alguns minutos. Um ciclo pode levar minutos por causa das pausas entre envios, e
+  segurar a requisição até lá não faria sentido.
 
 ### 9.4 Conexão do WhatsApp
 
@@ -619,7 +705,9 @@ Todas as telas, exceto `/login` e `/saude`, exigem autenticação.
 | Vazamento da sessão do WhatsApp | `storage/whatsapp/` e o banco nunca são servidos via HTTP |
 | Credenciais fracas em produção | O processo não inicia sem `ADMIN_SENHA` e `SESSAO_SEGREDO` definidos |
 | SQL injection | Todas as consultas usam parâmetros nomeados (prepared statements) |
-| Escalada no contêiner | A aplicação roda como usuário sem privilégios (`node`) |
+| Escalada no contêiner | Usuário sem privilégios (`node`), sistema de arquivos somente leitura, `cap_drop: ALL` e `no-new-privileges` |
+| Configuração insegura | A inicialização falha com valores inválidos e avisa sobre senha curta, segredo curto, cookie sem HTTPS e ausência de monitor |
+| Dependências vulneráveis | Dependabot semanal para npm e mensal para Docker e Actions. O Baileys é atualizado só manualmente |
 
 ---
 
@@ -629,7 +717,7 @@ Todas as telas, exceto `/login` e `/saude`, exigem autenticação.
 
 | Garantia | Mecanismo |
 | --- | --- |
-| No máximo um envio por aniversário | Consulta `jaEnviado` antes de enviar e índice único parcial `uq_envio_enviado` no banco |
+| No máximo um envio por aniversário | Trava única para o ciclo e o "Enviar agora", consulta `jaEnviado` antes de enviar e índice único parcial `uq_envio_enviado` no banco |
 | Novas tentativas limitadas | Até 3 tentativas por membro e por dia, uma por ciclo |
 | Isolamento de falhas | Cada membro é processado num `try/catch` próprio: uma falha é registrada e o ciclo segue |
 | Recuperação após reinício | O ciclo roda 10 s após a inicialização e envia o que estiver pendente no dia |
@@ -640,13 +728,13 @@ Todas as telas, exceto `/login` e `/saude`, exigem autenticação.
 
 - O sharp processa uma imagem por vez, sem cache.
 - O heap do Node é limitado a 384 MB, e o contêiner, a 600 MB. O Caddy usa até 128 MB.
-- A VM recebe 2 GB de swap, necessários para o build da imagem.
+- Com a imagem vinda do CI, a VM não compila nada. O swap de 2 GB só é necessário para compilar localmente.
 
 ### 12.3 Ciclo de vida do processo
 
-1. Valida as variáveis de ambiente obrigatórias.
+1. Valida a configuração. Erros interrompem a inicialização e avisos vão para o log.
 2. Cria as pastas de `storage/`.
-3. Abre o banco e aplica as migrações e os valores padrão.
+3. Abre o banco e aplica as migrações pendentes.
 4. Inicia o servidor HTTP, o WhatsApp e o agendador.
 5. Ao receber `SIGTERM` ou `SIGINT`: para o agendador, fecha o servidor HTTP e o banco e encerra.
    Se isso demorar mais de 5 s, o encerramento é forçado.
@@ -655,27 +743,45 @@ Todas as telas, exceto `/login` e `/saude`, exigem autenticação.
 
 | Sinal | Onde |
 | --- | --- |
-| Logs da aplicação | `docker compose logs app` (resumo de cada ciclo com envios e erros) |
-| Logs do Baileys | Nível controlado por `WHATSAPP_LOG` (padrão `warn`) |
-| Saúde do contêiner | Healthcheck do Docker em `/saude` |
+| Logs da aplicação | `docker compose logs app`: JSON com `modulo`, nível e contexto (membro, tentativa, erro) |
+| Requisições HTTP | Uma linha por requisição (método, URL, status e tempo), exceto `/static` e `/saude` |
+| Logs do Baileys | Nível próprio, controlado por `WHATSAPP_LOG` (padrão `warn`) |
+| Alertas | Monitor externo (`MONITOR_URL`), avisado a cada ciclo. Gera alerta se o aviso não chegar, se um envio falhar, se o grupo não estiver configurado ou se o WhatsApp estiver desconectado |
+| Saúde do contêiner | Healthcheck do Docker em `/saude` (confere o banco) |
 | Saúde funcional | Painel "Saúde do sistema" no dashboard e tela de histórico |
+
+Configuração sugerida no healthchecks.io: período de 15 minutos e tolerância de 30 minutos.
 
 ### 12.5 Backup e restauração
 
 - **Backup:** `deploy/backup.sh`, agendado no cron da VM (sugestão: diário às 03:00). Usa a API de
-  backup online do SQLite, que gera uma cópia consistente mesmo com a aplicação rodando, e
-  compacta `fotos/` e `fundos/`. Mantém 30 dias em `backups/`.
+  backup online do SQLite, que gera uma cópia consistente com a aplicação rodando, e compacta
+  `fotos/` e `fundos/`. Mantém 30 dias em `backups/`. Com `BACKUP_REMOTO` definido no `.env`, a
+  cópia do dia também vai para fora da VM via `rclone` (por exemplo, um bucket do Google Cloud
+  Storage).
 - **Restauração:** pare a aplicação, copie `dados.sqlite` e extraia `imagens.tar.gz` em `storage/`
   e suba novamente. As artes geradas não entram no backup, porque podem ser regeradas. A sessão do
   WhatsApp também não entra: depois de uma restauração em outra máquina, basta ler o QR Code de novo.
 
-### 12.6 Atualização
+### 12.6 Entrega contínua e atualização
 
-```bash
-git pull && sudo docker compose up -d --build
+```mermaid
+flowchart LR
+    push["push / PR"] --> verificar["lint · formatação ·<br/>tipos · testes + cobertura"]
+    verificar --> build["build da imagem"]
+    build -- "só na main" --> ghcr[("GHCR<br/>latest · sha-*")]
+    ghcr --> vm["VM: deploy/atualizar.sh"]
 ```
 
-As migrações do banco rodam automaticamente na inicialização.
+```bash
+bash deploy/atualizar.sh               # última versão da main
+bash deploy/atualizar.sh sha-1a2b3c4   # versão específica (rollback)
+bash deploy/atualizar.sh --build       # compila na VM, sem CI
+```
+
+O script atualiza o repositório, baixa a imagem, sobe os contêineres e espera o healthcheck. As
+migrações do banco rodam automaticamente na inicialização. Se o pacote no GHCR for privado, a VM
+precisa de um `docker login ghcr.io` com um token de leitura de pacotes.
 
 ---
 
@@ -683,17 +789,23 @@ As migrações do banco rodam automaticamente na inicialização.
 
 ### 13.1 Variáveis de ambiente
 
+Validadas na inicialização por `src/config.js`. Valores inválidos impedem o processo de subir.
+
 | Variável | Obrigatória | Padrão | Descrição |
 | --- | --- | --- | --- |
 | `ADMIN_USUARIO` | Não | `admin` | Usuário do painel |
-| `ADMIN_SENHA` | Em produção | `admin` (só em desenvolvimento) | Senha do painel |
-| `SESSAO_SEGREDO` | Em produção | valor fixo de desenvolvimento | Chave de assinatura do cookie de sessão |
+| `ADMIN_SENHA` | Em produção | `admin` (só em desenvolvimento) | Senha do painel. Aviso se tiver menos de 12 caracteres |
+| `SESSAO_SEGREDO` | Em produção | valor fixo de desenvolvimento | Chave de assinatura do cookie. Aviso se tiver menos de 32 caracteres |
 | `DOMINIO` | Em produção | — | Domínio usado pelo Caddy para emitir o certificado |
-| `PORTA` | Não | `3000` | Porta HTTP da aplicação |
+| `MONITOR_URL` | Recomendada | — | URL de ping do monitor externo (healthchecks.io ou compatível) |
+| `BACKUP_REMOTO` | Recomendada | — | Destino `rclone` da cópia externa do backup (ex.: `gcs:bucket/aniversarios`) |
+| `TAG` | Não | `latest` | Tag da imagem usada pelo Compose |
+| `PORTA` | Não | `3000` | Porta HTTP da aplicação (1 a 65535) |
 | `STORAGE_DIR` | Não | `./storage` | Diretório de dados |
-| `INTERVALO_CICLO_MIN` | Não | `15` | Intervalo entre ciclos, em minutos |
-| `WHATSAPP_DESATIVADO` | Não | — | `1` desliga o WhatsApp (desenvolvimento) |
+| `INTERVALO_CICLO_MIN` | Não | `15` | Intervalo entre ciclos, em minutos (1 a 60) |
+| `LOG_NIVEL` | Não | `info` | Nível de log da aplicação |
 | `WHATSAPP_LOG` | Não | `warn` | Nível de log do Baileys |
+| `WHATSAPP_DESATIVADO` | Não | — | `1` desliga o WhatsApp (desenvolvimento) |
 | `COOKIE_INSEGURO` | Não | — | `1` permite o cookie sem HTTPS em produção (só para diagnóstico) |
 | `NODE_ENV` | Não | — | `production` ativa cache de views, cookie seguro e exige as credenciais |
 | `TZ` | Sim | `America/Sao_Paulo` na imagem | Fuso horário de todas as datas |
@@ -709,29 +821,49 @@ Ficam na tabela `configuracao` e podem ser alteradas em `/configuracoes`, sem re
 | `grupo_whatsapp_nome` | — | Preenchido automaticamente |
 | `horario_envio` | `08:00` | `HH:MM`, 24 horas |
 | `idade_limite_infantil` | `12` | Inteiro de 1 a 18 |
-| `nome_ministerio` | `Ministério de Mídia` | Não vazio |
+| `nome_ministerio` | `Ministério de Mídia` | Não vazio, até 80 caracteres |
 
 ---
 
-## 14. Estratégia de testes
+## 14. Qualidade e testes
 
-Os testes usam o runner nativo do Node (`node:test`), sem dependências extras, e rodam com
-`TZ=America/Sao_Paulo` para resultados determinísticos.
+### 14.1 Verificações automáticas
+
+Todas rodam no CI a cada push e pull request, e localmente com `npm run verificar`.
+
+| Verificação | Ferramenta | Comando |
+| --- | --- | --- |
+| Lint e fronteiras da arquitetura | ESLint | `npm run lint` |
+| Formatação | Prettier | `npm run format:check` |
+| Tipos | TypeScript em modo `checkJs`, via JSDoc, sem compilar nada | `npm run typecheck` |
+| Testes e cobertura | `node:test` | `npm test` · `npm run test:cobertura` |
+| Build da imagem | Docker Buildx | CI |
+
+A checagem de tipos aproveita os tipos do Express, do better-sqlite3 e do Node, e os typedefs das
+linhas do banco em `compartilhado/tipos.js`. Isso pega erros de tipo sem migrar o projeto para
+TypeScript.
+
+### 14.2 Testes
+
+Os testes rodam com `TZ=America/Sao_Paulo` para resultados determinísticos, e com banco em memória.
 
 | Suíte | Cobertura |
 | --- | --- |
-| `test/datas.test.js` | Idade, próximo aniversário, 29/02 em ano bissexto e não bissexto, validação de datas |
-| `test/regra.test.js` | Ordem da regra de templates, limite infantil, template fixo, montagem da legenda |
-| `test/disparo.test.js` | Ciclo completo com banco em memória e canal de envio falso: horário, idempotência (na aplicação e no índice único), limite de 3 falhas, recuperação após falha e dimensões da arte sem foto e sem fundo |
-
-```bash
-npm test   # 16 testes
-```
-
-Lacunas conhecidas: "Enviar agora", rotas HTTP e reconexão do WhatsApp ainda não têm testes automatizados.
+| `unidade/datas` | Idade, próximo aniversário, 29/02, validação de datas |
+| `unidade/regra` | Ordem da regra de templates, limite infantil, template fixo, legenda |
+| `unidade/config` | Validação das variáveis de ambiente e avisos de produção |
+| `unidade/configuracao`, `unidade/templates` | Validação dos formulários |
+| `unidade/migracoes` | Sequência, banco novo e atualização de um banco existente sem perda de dados |
+| `unidade/monitor` | Classificação do ciclo e envio do ping, que nunca lança |
+| `integracao/disparo` | Ciclo completo com canal falso: horário, idempotência, limite de falhas, recuperação, "Enviar agora" e a trava contra envio simultâneo |
+| `integracao/http` | Rotas reais com supertest: autenticação, limite de tentativas, cabeçalhos, cadastro, configurações e proteção do `storage/` |
 
 O design favorece a testabilidade: as funções de data recebem "agora" e "hoje" como parâmetro, o
-canal de envio e a pausa são injetáveis, e a regra de templates é uma função pura.
+canal de envio, a pausa e o envio ao monitor são injetáveis, a configuração é uma função pura
+(`carregarConfig`) e a regra de templates não tem efeitos colaterais.
+
+Lacuna conhecida: a reconexão do WhatsApp não tem teste automatizado, porque depende do protocolo
+real. Ela é validada manualmente a cada atualização do Baileys.
 
 ---
 
@@ -739,13 +871,15 @@ canal de envio e a pausa são injetáveis, e a regra de templates é uma funçã
 
 | ID | Risco | Probabilidade | Impacto | Mitigação |
 | --- | --- | --- | --- | --- |
-| R-01 | O Baileys usa um protocolo não oficial: o número pode ser bloqueado ou a biblioteca pode quebrar com mudanças do WhatsApp | Média | Alto | Volume baixo (poucas mensagens por dia), pausas e "digitando…". Usar um número dedicado. O canal é isolado no módulo `whatsapp` e pode ser trocado |
-| R-02 | Ponto único de falha: uma VM, um processo e um disco | Média | Médio | Reinício automático (`restart: unless-stopped`), ciclo de recuperação e backup diário |
-| R-03 | "Enviar agora" e o ciclo automático podem coincidir para o mesmo membro, gerando uma mensagem duplicada no grupo (o índice único impede só o registro duplicado) | Baixa | Baixo | Estender a trava do ciclo ao "Enviar agora" ou verificar `jaEnviado` sob a trava |
-| R-04 | O controle de tentativas de login fica em memória: é zerado a cada reinício e o mapa de IPs não é limpo periodicamente | Baixa | Baixo | Aceitável para um único operador. Pode virar uma limpeza periódica ou passar para o banco |
-| R-05 | Um único usuário administrador, sem trilha de auditoria por pessoa | Baixa | Baixo | Fora do escopo atual. Uma tabela `usuario` resolveria |
-| R-06 | As artes geradas acumulam em `storage/artes/` indefinidamente | Alta | Baixo | Cerca de 200 KB por arte, um volume desprezível no curto prazo. Pode ganhar uma rotina de limpeza |
-| R-07 | Uma mudança de horário configurada depois do horário antigo não reenvia nem pula envios; vale a nova regra a partir do próximo ciclo | Baixa | Baixo | Comportamento esperado, documentado aqui |
+| R-01 | O Baileys usa um protocolo não oficial: o número pode ser bloqueado ou a biblioteca pode quebrar com mudanças do WhatsApp | Média | Alto | Volume baixo, pausas e "digitando…". Número dedicado. Versão fixada e atualizada só manualmente. Canal isolado no módulo `whatsapp`. O monitor alerta se a conexão cair |
+| R-02 | Ponto único de falha: uma VM, um processo e um disco | Média | Médio | Reinício automático, ciclo de recuperação, backup diário fora da VM e alerta do monitor se o processo parar |
+| R-03 | O controle de tentativas de login fica em memória: é zerado a cada reinício e o mapa de IPs não é limpo periodicamente | Baixa | Baixo | Aceitável para um único operador. Pode virar uma limpeza periódica ou passar para o banco |
+| R-04 | Um único usuário administrador, sem trilha de auditoria por pessoa | Baixa | Baixo | Fora do escopo atual. Uma tabela `usuario` resolveria |
+| R-05 | As artes geradas acumulam em `storage/artes/` indefinidamente | Alta | Baixo | Cerca de 200 KB por arte, volume desprezível no curto prazo. Pode ganhar uma rotina de limpeza |
+| R-06 | Uma mudança do horário de envio depois do horário antigo não reenvia nem pula envios: vale a nova regra a partir do próximo ciclo | Baixa | Baixo | Comportamento esperado, documentado aqui |
+
+**Resolvido na versão 1.2:** o "Enviar agora" coincidindo com o ciclo automático podia postar a
+mesma arte duas vezes no grupo. Agora os dois compartilham uma trava (ver [§9.3](#93-enviar-agora)).
 
 ---
 
@@ -764,9 +898,12 @@ canal de envio e a pausa são injetáveis, e a regra de templates é uma funçã
 | **Arte** | Imagem JPEG 1080×1350 gerada para o aniversariante |
 | **Baileys** | Biblioteca JavaScript que implementa o protocolo do WhatsApp Web |
 | **Ciclo** | Uma execução do disparo, que avalia e envia as artes pendentes do dia |
+| **Dead man's switch** | Monitoramento em que o sistema avisa periodicamente que está vivo; a ausência do aviso gera alerta |
 | **Envio** | Registro de uma tentativa de postagem (`enviado`, `falhou` ou `teste`) |
+| **GHCR** | GitHub Container Registry, onde o CI publica a imagem Docker |
 | **JID** | Identificador de um contato ou grupo no WhatsApp (por exemplo, `1203…@g.us`) |
 | **Legenda** | Texto da mensagem do WhatsApp que acompanha a arte |
+| **Migração** | Arquivo `.sql` numerado que evolui o esquema do banco de uma versão para a próxima |
 | **Template** | Conjunto de fundo, cor, frase e legenda usado para gerar a arte |
 | **Template fixo** | Template escolhido manualmente para um membro, acima da regra automática |
 | **WAL** | Write-Ahead Logging, modo do SQLite que permite leituras durante as escritas |
