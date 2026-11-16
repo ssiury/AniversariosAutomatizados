@@ -12,6 +12,7 @@ const banco = await import('#compartilhado/banco/index.js');
 const membros = await import('#modulos/membros/repositorio.js');
 const templates = await import('#modulos/templates/repositorio.js');
 const configuracao = await import('#modulos/configuracao/repositorio.js');
+const envios = await import('#modulos/disparo/repositorio.js');
 const { criarApp } = await import('../../src/app.js');
 
 /** @type {import('express').Express} */
@@ -110,4 +111,55 @@ test('sessão do WhatsApp e banco nunca são servidos', async () => {
   await logado.get('/storage/whatsapp/creds.json').expect(404);
   await logado.get('/storage/dados.sqlite').expect(404);
   await logado.get('/storage/fotos/../whatsapp/creds.json').expect(403);
+});
+
+test('membros: filtro por template e contagens dos chips no htmx', async () => {
+  await logado
+    .post('/membros')
+    .type('form')
+    .send({ nome: 'Criança Teste', data_nascimento: '2020-01-10', sexo: 'M', ativo: 'on' });
+  await logado
+    .post('/membros')
+    .type('form')
+    .send({ nome: 'Adulta Teste', data_nascimento: '1990-01-10', sexo: 'F', ativo: 'on' });
+  const r = await logado.get('/membros?template=infantil').set('HX-Request', 'true').expect(200);
+  assert.match(r.text, /Criança Teste/);
+  assert.doesNotMatch(r.text, /Adulta Teste/);
+  assert.match(r.text, /id="conta-infantil" hx-swap-oob="true">1</);
+  const pagina = await logado.get('/membros').expect(200);
+  assert.match(pagina.text, /Adulta Teste/);
+});
+
+test('templates: seleção, salvar e restaurar o padrão', async () => {
+  const [t] = templates.listar();
+  const pagina = await logado.get(`/templates?t=${t.id}`).expect(200);
+  assert.match(pagina.text, /class="balao"/);
+  await logado
+    .post(`/templates/${t.id}`)
+    .type('form')
+    .send({ nome: 'Mudado', cor_destaque: '#2F7D88', mensagem_arte: 'x', legenda: 'y' })
+    .expect(302);
+  assert.equal(templates.obter(t.id).cor_destaque, '#2f7d88');
+  await logado.post(`/templates/${t.id}/restaurar`).expect(302);
+  const restaurado = templates.obter(t.id);
+  assert.equal(restaurado.nome, t.nome);
+  assert.equal(restaurado.cor_destaque, t.cor_destaque);
+  assert.equal(restaurado.legenda, t.legenda);
+});
+
+test('histórico: resumo e filtro de falhas', async () => {
+  const [m] = membros.listar({ busca: 'Criança' });
+  envios.registrar({
+    membro_id: m.id,
+    data_aniversario: '2027-01-10',
+    status: 'teste',
+    detalhe: 'Falhou: sem conexão',
+  });
+  envios.registrar({ membro_id: m.id, data_aniversario: '2027-01-10', status: 'teste', detalhe: 'Mensagem ABC' });
+  const c = envios.contagens();
+  assert.deepEqual([c.testes, c.testesTotal, c.falhas], [1, 2, 1]);
+  const r = await logado.get('/historico?status=falhas').expect(200);
+  assert.match(r.text, /Teste falhou/);
+  assert.doesNotMatch(r.text, /Teste enviado/);
+  await logado.get('/historico?status=qualquer-coisa').expect(200);
 });

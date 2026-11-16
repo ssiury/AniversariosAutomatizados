@@ -15,7 +15,34 @@ const MESES = [
   'dezembro',
 ];
 
+const DIAS_SEMANA = [
+  'domingo',
+  'segunda-feira',
+  'terça-feira',
+  'quarta-feira',
+  'quinta-feira',
+  'sexta-feira',
+  'sábado',
+];
+
 export const pad = (n) => String(n).padStart(2, '0');
+
+/** Dia da semana por extenso (ex.: "segunda-feira"). */
+export function diaSemana(iso) {
+  const { a, m, d } = partes(iso);
+  return DIAS_SEMANA[new Date(Date.UTC(a, m - 1, d)).getUTCDay()];
+}
+
+/** Dia da semana abreviado, sem o "-feira" (ex.: "seg", "sáb"). */
+export function diaSemanaCurto(iso) {
+  return diaSemana(iso).slice(0, 3);
+}
+
+/** Sábado ou domingo. */
+export function ehFimDeSemana(iso) {
+  const { a, m, d } = partes(iso);
+  return [0, 6].includes(new Date(Date.UTC(a, m - 1, d)).getUTCDay());
+}
 
 export function hojeISO(agora = new Date()) {
   return `${agora.getFullYear()}-${pad(agora.getMonth() + 1)}-${pad(agora.getDate())}`;

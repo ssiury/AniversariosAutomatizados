@@ -1,4 +1,4 @@
-// Copia para o repositório só os ícones (Lucide) e as fontes (Inter) que o painel usa.
+// Copia para o repositório só os ícones (Lucide) e as fontes que o painel usa.
 // Os pacotes completos têm dezenas de MB e ficam só no desenvolvimento; a imagem leva os arquivos copiados.
 // Uso: npm run assets   (rode de novo depois de acrescentar um ícone em ICONES)
 import fs from 'node:fs';
@@ -19,11 +19,24 @@ for (const nome of ICONES) {
 }
 fs.copyFileSync(path.join(raiz, 'node_modules/lucide-static/LICENSE'), path.join(destinoIcones, 'LICENSE'));
 
-fs.mkdirSync(destinoFontes, { recursive: true });
-const fontes = path.join(raiz, 'node_modules/@fontsource-variable/inter');
-for (const arquivo of ['inter-latin-wght-normal.woff2', 'inter-latin-ext-wght-normal.woff2']) {
-  fs.copyFileSync(path.join(fontes, 'files', arquivo), path.join(destinoFontes, arquivo));
-}
-fs.copyFileSync(path.join(fontes, 'LICENSE'), path.join(destinoFontes, 'LICENSE-Inter.txt'));
+// Família → arquivos (subconjuntos latin e latin-ext, eixo de peso variável) e nome da licença.
+const FONTES = {
+  inter: ['inter-latin-wght-normal.woff2', 'inter-latin-ext-wght-normal.woff2'],
+  'bricolage-grotesque': [
+    'bricolage-grotesque-latin-wght-normal.woff2',
+    'bricolage-grotesque-latin-ext-wght-normal.woff2',
+  ],
+  'jetbrains-mono': ['jetbrains-mono-latin-wght-normal.woff2'],
+};
 
-console.log(`${ICONES.length} ícones e 2 fontes copiados.`);
+fs.rmSync(destinoFontes, { recursive: true, force: true });
+fs.mkdirSync(destinoFontes, { recursive: true });
+for (const [familia, arquivos] of Object.entries(FONTES)) {
+  const origem = path.join(raiz, 'node_modules/@fontsource-variable', familia);
+  for (const arquivo of arquivos) {
+    fs.copyFileSync(path.join(origem, 'files', arquivo), path.join(destinoFontes, arquivo));
+  }
+  fs.copyFileSync(path.join(origem, 'LICENSE'), path.join(destinoFontes, `LICENSE-${familia}.txt`));
+}
+
+console.log(`${ICONES.length} ícones e ${Object.values(FONTES).flat().length} arquivos de fonte copiados.`);

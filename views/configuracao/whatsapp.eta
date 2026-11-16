@@ -1,26 +1,37 @@
-<div id="whatsapp" class="formulario" <% if (!it.wa.conectado && !it.wa.desativado) { %>hx-get="/configuracoes/whatsapp" hx-trigger="every 3s" hx-swap="outerHTML"<% } %>>
-  <% if (it.wa.desativado) { %>
-    <p class="alerta info"><%~ it.h.icone('info') %><span><%= it.wa.erro %></span></p>
-  <% } else if (it.wa.conectado) { %>
-    <div class="whatsapp-estado">
-      <span class="chip-icone conectado"><%~ it.h.icone('smartphone') %></span>
-      <div>
-        <span class="selo conectado">Conectado</span>
-        <p class="sutil numero"><%= it.wa.numero ? '+' + it.wa.numero : 'Número não identificado' %></p>
-      </div>
+<% const h = it.h; const wa = it.wa; %>
+<section id="whatsapp" class="cartao" <% if (!wa.conectado && !wa.desativado) { %>hx-get="/configuracoes/whatsapp" hx-trigger="every 3s" hx-swap="outerHTML"<% } %>>
+  <div class="cartao-cabecalho">
+    <h2><%= wa.conectado ? 'WhatsApp' : 'Conectar WhatsApp' %></h2>
+    <% if (wa.conectado) { %><span class="pilula ok"><span class="ponto"></span>Conectado</span>
+    <% } else if (!wa.desativado) { %><span class="pilula aviso"><span class="ponto"></span>Desconectado</span><% } %>
+  </div>
+
+  <% if (wa.desativado) { %>
+    <p class="alerta neutro"><%~ h.icone('info') %><span><%= wa.erro %></span></p>
+  <% } else if (wa.conectado) { %>
+    <div class="conectado-info">
+      <span class="icone-caixa ok"><%~ h.icone('smartphone') %></span>
+      <div><b>Aparelho conectado</b><div class="sutil numero"><%= wa.numero ? '+' + wa.numero : 'Número não identificado' %></div></div>
     </div>
-    <form method="post" action="/configuracoes/whatsapp/desconectar" onsubmit="return confirm('Desconectar o WhatsApp? Será preciso escanear um novo QR Code.')">
-      <button class="botao perigo">Desconectar</button>
+    <form method="post" action="/configuracoes/whatsapp/desconectar" style="margin-top: 20px" onsubmit="return confirm('Desconectar o WhatsApp? Será preciso ler um novo QR Code.')">
+      <button class="botao perigo pequeno">Desconectar</button>
     </form>
-  <% } else if (it.wa.qr) { %>
-    <ol class="passos">
-      <li>Abra o WhatsApp no celular que vai publicar.</li>
-      <li>Toque em <strong>Dispositivos conectados</strong> e em <strong>Conectar dispositivo</strong>.</li>
-      <li>Aponte a câmera para o código abaixo.</li>
-    </ol>
-    <img class="qr" src="<%= it.wa.qr %>" alt="QR Code do WhatsApp">
   <% } else { %>
-    <p class="carregando">Conectando ao WhatsApp…</p>
+    <div class="area-qr">
+      <% if (wa.qr) { %>
+        <img class="qr" src="<%= wa.qr %>" alt="QR Code para conectar o WhatsApp">
+      <% } else { %>
+        <div class="qr"><%~ h.icone('qr-code') %><span>Gerando o QR Code…</span></div>
+      <% } %>
+    </div>
+    <ol class="passos">
+      <li><i>1</i><span>Abra o WhatsApp no celular que vai publicar.</span></li>
+      <li><i>2</i><span>Toque em <b>Dispositivos conectados</b> e depois em <b>Conectar dispositivo</b>.</span></li>
+      <li><i>3</i><span>Aponte a câmera para o código acima.</span></li>
+    </ol>
+    <form method="post" action="/configuracoes/whatsapp/desconectar" style="margin-top: 20px">
+      <button class="botao secundario pequeno"><%~ h.icone('refresh-cw') %>Gerar novo código</button>
+    </form>
   <% } %>
-  <% if (it.wa.erro && !it.wa.desativado) { %><p class="alerta erro" role="alert"><%~ it.h.icone('circle-alert') %><span><%= it.wa.erro %></span></p><% } %>
-</div>
+  <% if (wa.erro && !wa.desativado) { %><p class="alerta falha" role="alert" style="margin-top: 16px"><%~ h.icone('circle-alert') %><span><%= wa.erro %></span></p><% } %>
+</section>

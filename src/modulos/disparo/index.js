@@ -8,4 +8,11 @@ export {
   usarPausa,
   MOTIVO_OCUPADO,
 } from './servico.js';
-export { situacaoDoDia, ultimos as ultimosEnvios, listar as listarEnvios } from './repositorio.js';
+export {
+  situacaoDoDia,
+  ultimoDoDia,
+  contagens as contagensEnvios,
+  ultimos as ultimosEnvios,
+  listar as listarEnvios,
+} from './repositorio.js';
+export { descreverEnvio } from './apresentacao.js';

@@ -6,6 +6,7 @@ import { config } from '#config';
 import { logger } from '#compartilhado/logger.js';
 import { render } from '#compartilhado/views.js';
 import { getDb } from '#compartilhado/banco/index.js';
+import * as whatsapp from '#modulos/whatsapp/index.js';
 // As rotas de cada módulo só são importadas aqui, nunca pelos outros módulos.
 import { rotasAuth, exigirLogin } from '#modulos/painel/auth.js';
 import rotasPainel from '#modulos/painel/rotas.js';
@@ -68,6 +69,11 @@ export function criarApp() {
 
   app.use(rotasAuth);
   app.use(exigirLogin);
+  // Estado do WhatsApp para o indicador do cabeçalho, em todas as páginas do painel.
+  app.use((_req, res, next) => {
+    res.locals.whatsapp = whatsapp.status();
+    next();
+  });
 
   // Só as pastas de imagens são servidas; a sessão do WhatsApp e o banco ficam de fora.
   for (const pasta of ['fotos', 'fundos', 'artes']) {

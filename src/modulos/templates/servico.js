@@ -1,7 +1,58 @@
 import * as configuracao from '#modulos/configuracao/index.js';
 import { hojeISO, partes, pad } from '#compartilhado/datas.js';
 import * as repo from './repositorio.js';
-import { escolherTemplate } from './regra.js';
+import { escolherTemplate, montarLegenda } from './regra.js';
+
+/**
+ * Valores com que cada template é criado (migração 002), usados pelo "Restaurar padrão".
+ * Um teste garante que continuam iguais aos da migração.
+ */
+export const TEMPLATES_PADRAO = Object.freeze({
+  masculino: {
+    nome: 'Masculino',
+    cor_destaque: '#1565c0',
+    mensagem_arte: 'Que Deus abençoe\nseu novo ano de vida!',
+    legenda:
+      '🎉 Hoje é aniversário do *{nome}*!\nParabéns pelos {idade} anos. Que Deus te abençoe grandemente!\n\n— {ministerio}',
+  },
+  feminino: {
+    nome: 'Feminino',
+    cor_destaque: '#c2185b',
+    mensagem_arte: 'Que Deus abençoe\nseu novo ano de vida!',
+    legenda:
+      '🎉 Hoje é aniversário da *{nome}*!\nParabéns pelos {idade} anos. Que Deus te abençoe grandemente!\n\n— {ministerio}',
+  },
+  infantil: {
+    nome: 'Infantil',
+    cor_destaque: '#ef6c00',
+    mensagem_arte: 'Hoje é dia de festa!\nDeus te ama muito!',
+    legenda:
+      '🎈 Hoje é dia de festa! *{nome}* está fazendo {idade} aninhos!\nQue Jesus encha sua vida de alegria!\n\n— {ministerio}',
+  },
+});
+
+/** Cores oferecidas como atalho no editor, além da cor padrão do próprio template. */
+export const CORES_SUGERIDAS = Object.freeze(['#3f5fb5', '#5b6cd9', '#2f7d88', '#7a5ac8', '#b4466f', '#d27333']);
+
+/** Paleta do editor: cor padrão do template primeiro, sem repetir. */
+export function coresDoEditor(tipo) {
+  return [...new Set([TEMPLATES_PADRAO[tipo]?.cor_destaque, ...CORES_SUGERIDAS].filter(Boolean))];
+}
+
+/** Volta nome, cor e textos ao padrão. O fundo personalizado é mantido. */
+export function restaurar(template) {
+  const padrao = TEMPLATES_PADRAO[template.tipo];
+  if (padrao) repo.atualizar(template.id, padrao);
+}
+
+/** Mensagem do template preenchida com o membro de exemplo, para a prévia do WhatsApp. */
+export function legendaDeExemplo(template, hoje = hojeISO()) {
+  return montarLegenda(template.legenda, {
+    membro: membroExemplo(template.tipo, hoje),
+    dataAniversario: hoje,
+    nomeMinisterio: configuracao.obter('nome_ministerio'),
+  });
+}
 
 /** Retorna uma função que resolve o template de um membro, lendo templates e configuração uma só vez. */
 export function criarResolvedor() {

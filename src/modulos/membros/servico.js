@@ -42,6 +42,21 @@ export function listarDetalhado(filtros = {}, hoje = hojeISO()) {
   return repo.listar(filtros).map((m) => detalhar(m, hoje, resolver));
 }
 
+const TIPOS = ['masculino', 'feminino', 'infantil'];
+
+/**
+ * Lista do painel: aplica busca, situação e mês no banco e o template (que é calculado) aqui.
+ * As contagens por template ignoram o filtro de template, para os chips mostrarem quantos há em cada um.
+ */
+export function listarParaPainel(filtros = {}, hoje = hojeISO()) {
+  const { template = '', ...outros } = filtros;
+  const todos = listarDetalhado(outros, hoje);
+  const contagem = { todos: todos.length, masculino: 0, feminino: 0, infantil: 0 };
+  for (const m of todos) if (m.template) contagem[m.template.tipo] += 1;
+  const lista = TIPOS.includes(template) ? todos.filter((m) => m.template?.tipo === template) : todos;
+  return { lista, contagem };
+}
+
 export function detalhar(m, hoje = hojeISO(), resolver = templates.criarResolvedor()) {
   const proximo = proximoAniversario(m.data_nascimento, hoje);
   return {

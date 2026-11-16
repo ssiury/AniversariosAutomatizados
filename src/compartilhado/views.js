@@ -21,6 +21,26 @@ function iniciais(nome) {
 
 export const eta = new Eta({ views: path.join(config.raiz, 'views'), cache: config.producao });
 
+const escapar = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/**
+ * Texto do WhatsApp em HTML para a prévia: escapa tudo primeiro e só então aplica *negrito*,
+ * _itálico_, ~tachado~ e as quebras de linha. O resultado é seguro para ir ao HTML sem escape.
+ */
+export function formatarWhatsapp(texto) {
+  return escapar(texto)
+    .replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])_([^_\n]+)_/g, '$1<i>$2</i>')
+    .replace(/~([^~\n]+)~/g, '<s>$1</s>')
+    .replace(/\r?\n/g, '<br>');
+}
+
 export const helpers = {
   formatarBR: datas.formatarBR,
   formatarDiaMes: datas.formatarDiaMes,
@@ -28,6 +48,11 @@ export const helpers = {
   nomeMes: datas.nomeMes,
   sexo: (s) => (s === 'F' ? 'Feminino' : 'Masculino'),
   icone,
+  formatarWhatsapp,
+  diaSemana: datas.diaSemana,
+  /** Hora "HH:MM" de um datetime do SQLite ("AAAA-MM-DD HH:MM:SS"). */
+  hora: (sqlDateTime) => String(sqlDateTime ?? '').slice(11, 16),
+  capitalizar: (s) => (s ? s[0].toUpperCase() + s.slice(1) : ''),
   iniciais,
   /** Dia do mês de uma data ISO, sem zero à esquerda. */
   dia: (iso) => String(Number(iso.slice(8, 10))),

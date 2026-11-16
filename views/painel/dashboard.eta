@@ -1,163 +1,202 @@
 <% layout('../layout', { titulo: 'Dashboard' }) %>
-<% const rotuloStatus = { aguardando: 'Aguardando', enviado: 'Enviado', falhou: 'Falhou', teste: 'Teste' }; %>
-<% const avatar = (m) => `<span class="avatar ${m.template?.tipo ?? ''}">${m.foto ? `<img src="/storage/${m.foto}" alt="" loading="lazy">` : it.h.iniciais(m.nome)}</span>`; %>
+<% const h = it.h; %>
+<% const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`; %>
+<% const destaque = it.deHoje[0]; %>
+<% const proximoDia = it.calendario.slice(1).find((d) => d.membros.length); %>
+<% const proximo = proximoDia?.membros[0]; %>
+<% const confetes = [
+  ['10px', '10px', '#F3C26B', '26px', '58%', '20deg'],
+  ['7px', '14px', '#8E7FF2', '70%', '52%', '-25deg'],
+  ['8px', '8px', '#6FCF9F', '18%', '88%', '40deg'],
+  ['6px', '12px', '#F08DA6', '84%', '94%', '15deg'],
+  ['9px', '9px', '#F3C26B', '88%', '40%', '60deg'],
+]; %>
 
-<header class="cabecalho">
+<div class="cabecalho">
   <div>
-    <h1>Dashboard</h1>
-    <p>Hoje é <%= it.h.formatarDiaMes(it.hoje) %>.</p>
+    <p class="sobretitulo"><%= h.diaSemana(it.hoje) %>, <%= h.formatarDiaMes(it.hoje) %></p>
+    <h1><% if (it.deHoje.length) { %>Hoje tem <em>festa</em>.<% } else { %>Tudo em <em>dia</em>.<% } %></h1>
+    <p class="subtitulo">
+      <%= it.deHoje.length ? plural(it.deHoje.length, 'aniversariante hoje', 'aniversariantes hoje') : 'Nenhum aniversariante hoje' %>
+      · <%= it.proximos7 ? `${it.proximos7} nos próximos 7 dias` : 'nenhum nos próximos 7 dias' %>
+    </p>
   </div>
-  <a class="botao secundario" href="/membros/novo"><%~ it.h.icone('plus') %>Novo membro</a>
-</header>
+  <div class="acoes">
+    <button class="botao secundario" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this"><%~ h.icone('play') %>Rodar ciclo</button>
+    <a href="/membros/novo" class="botao escuro"><%~ h.icone('plus') %>Novo membro</a>
+  </div>
+</div>
+<div id="resultado-ciclo" class="resultado" aria-live="polite" style="margin-bottom: 20px"></div>
 
-<div class="pilha-secoes">
-  <section class="indicadores" aria-label="Resumo">
-    <div class="cartao indicador">
-      <div class="indicador-topo">Aniversariantes hoje <span class="chip-icone"><%~ it.h.icone('cake') %></span></div>
-      <span class="indicador-valor"><%= it.deHoje.length %></span>
-      <span class="indicador-legenda"><%= it.deHoje.length ? 'Artes enviadas no horário configurado' : 'Nenhum aniversário hoje' %></span>
-    </div>
-    <div class="cartao indicador">
-      <div class="indicador-topo">Neste mês <span class="chip-icone"><%~ it.h.icone('calendar-days') %></span></div>
-      <span class="indicador-valor"><%= it.doMes.length %></span>
-      <span class="indicador-legenda">Aniversariantes em <%= it.h.nomeMes(it.mesAtual) %></span>
-    </div>
-    <div class="cartao indicador">
-      <div class="indicador-topo">Membros ativos <span class="chip-icone"><%~ it.h.icone('users') %></span></div>
-      <span class="indicador-valor"><%= it.totais.ativos %></span>
-      <span class="indicador-legenda"><%= it.totais.inativos %> inativo<%= it.totais.inativos === 1 ? '' : 's' %></span>
-    </div>
-    <div class="cartao indicador">
-      <div class="indicador-topo">Por template <span class="chip-icone"><%~ it.h.icone('palette') %></span></div>
-      <div class="distribuicao">
-        <span class="cor-masculino" title="Masculino"><%~ it.h.icone('mars') %><%= it.porTemplate.masculino %></span>
-        <span class="cor-feminino" title="Feminino"><%~ it.h.icone('venus') %><%= it.porTemplate.feminino %></span>
-        <span class="cor-infantil" title="Infantil"><%~ it.h.icone('baby') %><%= it.porTemplate.infantil %></span>
+<div class="grade-destaque">
+  <section class="destaque" aria-labelledby="destaque-nome">
+    <% for (const [w, a, cor, top, left, rot] of confetes) { %>
+      <span class="confete" aria-hidden="true" style="width: <%= w %>; height: <%= a %>; background: <%= cor %>; top: <%= top %>; left: <%= left %>; transform: rotate(<%= rot %>)"></span>
+    <% } %>
+
+    <% if (destaque) { %>
+      <% const e = destaque.envio; const s = destaque.situacao.status; %>
+      <div>
+        <p class="sobretitulo">Aniversariante do dia</p>
+        <h2 id="destaque-nome"><%= destaque.nome %></h2>
+        <p class="chamada">Completa <b><%= destaque.idade %> anos</b> hoje · template <%= destaque.template?.nome %></p>
+        <% if (it.deHoje.length > 1) { %>
+          <p class="outros">Também hoje:
+            <% it.deHoje.slice(1).forEach((m, i) => { %><%= i ? ', ' : '' %><a href="/membros/<%= m.id %>"><%= m.nome %></a><% }) %>
+          </p>
+        <% } %>
+        <ol class="linha-tempo">
+          <% if (s === 'enviado') { %>
+            <li><span class="marcador"><%~ h.icone('check') %></span>Arte gerada<small><%= h.hora(e?.criado_em) %></small></li>
+            <li><span class="marcador"><%~ h.icone('check') %></span>Enviada ao grupo<%= it.grupo ? ` ${it.grupo}` : '' %><small><%= h.hora(e?.criado_em) %></small></li>
+          <% } else if (s === 'falhou') { %>
+            <li><span class="marcador erro"><%~ h.icone('x') %></span>Tentativa <%= destaque.situacao.falhas %> de 3 falhou<small><%= h.hora(e?.criado_em) %></small></li>
+            <li><span class="marcador pendente"><%~ h.icone('clock') %></span><%= destaque.situacao.falhas < 3 ? 'Nova tentativa no próximo ciclo' : 'Sem novas tentativas automáticas hoje' %></li>
+          <% } else { %>
+            <li><span class="marcador"><%~ h.icone('check') %></span>Arte pronta</li>
+            <li><span class="marcador pendente"><%~ h.icone('clock') %></span><%= it.envio.ativo ? `Envio ao grupo programado para ${it.envio.hora}` : 'Envio automático pausado' %></li>
+          <% } %>
+        </ol>
+        <div class="acoes">
+          <a href="<%= e?.arquivo_arte ? '/storage/' + e.arquivo_arte : '/membros/' + destaque.id + '/previa.jpg' %>" class="botao claro" target="_blank" rel="noopener"><%~ h.icone('image') %>Ver arte</a>
+          <button class="botao contorno" hx-post="/membros/<%= destaque.id %>/enviar" hx-target="#resultado-destaque" hx-disabled-elt="this"
+            hx-confirm="<%= s === 'enviado' ? 'Reenviar a arte de ' + destaque.nome + ' para o grupo? Ela será registrada como teste.' : 'Enviar a arte de ' + destaque.nome + ' para o grupo agora?' %>">
+            <%~ h.icone(s === 'enviado' ? 'refresh-cw' : 'send') %><%= s === 'enviado' ? 'Reenviar' : 'Enviar agora' %>
+          </button>
+        </div>
+        <div id="resultado-destaque" class="resultado" aria-live="polite" style="margin-top: 16px"></div>
       </div>
-      <span class="indicador-legenda">Masculino, feminino e infantil</span>
-    </div>
+      <div class="pilha-arte">
+        <span class="atras" aria-hidden="true"></span>
+        <img src="/membros/<%= destaque.id %>/previa.jpg?w=440" alt="Arte de aniversário de <%= destaque.nome %>">
+      </div>
+    <% } else if (proximo) { %>
+      <div>
+        <p class="sobretitulo">Próximo aniversário</p>
+        <h2 id="destaque-nome"><%= proximo.nome %></h2>
+        <p class="chamada">Faz <b><%= proximo.idade + 1 %> anos</b> <%= proximo.dias_ate === 1 ? 'amanhã' : `em ${proximo.dias_ate} dias` %> · <%= h.formatarDiaMes(proximo.proximo_aniversario) %></p>
+        <ol class="linha-tempo">
+          <li><span class="marcador"><%~ h.icone('check') %></span>Arte pronta com o template <%= proximo.template?.nome %></li>
+          <li><span class="marcador pendente"><%~ h.icone('clock') %></span>Envio no dia, às <%= it.envio.hora %></li>
+        </ol>
+        <div class="acoes">
+          <a href="/membros/<%= proximo.id %>" class="botao claro"><%~ h.icone('users') %>Ver cadastro</a>
+        </div>
+      </div>
+      <div class="pilha-arte">
+        <span class="atras" aria-hidden="true"></span>
+        <img src="/membros/<%= proximo.id %>/previa.jpg?w=440" alt="Arte de aniversário de <%= proximo.nome %>">
+      </div>
+    <% } else { %>
+      <div>
+        <p class="sobretitulo">Próximas duas semanas</p>
+        <h2 id="destaque-nome">Sem aniversários</h2>
+        <p class="chamada">Nenhum membro ativo faz aniversário nos próximos 14 dias.</p>
+        <div class="acoes"><a href="/membros/novo" class="botao claro"><%~ h.icone('plus') %>Cadastrar membro</a></div>
+      </div>
+      <div class="pilha-arte"><span class="atras" aria-hidden="true"></span><span class="vazio-arte"><%~ h.icone('cake') %></span></div>
+    <% } %>
   </section>
 
+  <div class="coluna">
+    <section class="cartao">
+      <p class="sobretitulo">Próximo envio</p>
+      <div class="hora-grande"><%= it.envio.hora %></div>
+      <div class="sutil"><%= it.envio.quando %>, <%= h.diaSemana(it.envio.data) %> · <%= h.formatarDiaMes(it.envio.data) %></div>
+      <div class="chave-valor"><%~ h.icone('message-square') %>Grupo<b><%= it.grupo || 'Não configurado' %></b></div>
+      <div class="chave-valor"><%~ h.icone('send') %>Envio automático
+        <span><% if (it.envio.ativo) { %><span class="pilula ok"><span class="ponto"></span>Ativo</span><% } else { %><span class="pilula neutro"><%~ h.icone('pause') %>Pausado</span><% } %></span>
+      </div>
+    </section>
+
+    <% if (!it.whatsapp.conectado && !it.whatsapp.desativado) { %>
+      <section class="cartao cartao-aviso">
+        <span class="icone-aviso"><%~ h.icone('smartphone') %></span>
+        <h3>WhatsApp desconectado</h3>
+        <p>Os envios automáticos ficam em espera até o aparelho ser conectado de novo.</p>
+        <a href="/configuracoes" class="botao escuro pequeno">Conectar agora<%~ h.icone('chevron-right') %></a>
+      </section>
+    <% } else if (!it.grupo) { %>
+      <section class="cartao cartao-aviso">
+        <span class="icone-aviso"><%~ h.icone('message-square') %></span>
+        <h3>Grupo não configurado</h3>
+        <p>Escolha o grupo do WhatsApp que vai receber as artes.</p>
+        <a href="/configuracoes" class="botao escuro pequeno">Escolher grupo<%~ h.icone('chevron-right') %></a>
+      </section>
+    <% } %>
+  </div>
+</div>
+
+<section class="cartao">
+  <div class="cartao-cabecalho">
+    <h2>Próximos 14 dias</h2>
+    <span class="sutil pequeno"><%= h.dia(it.calendario[0].data) %> – <%= h.formatarDiaMes(it.calendario.at(-1).data) %></span>
+  </div>
+  <div class="calendario">
+    <% for (const d of it.calendario) { %>
+      <div class="dia<%= d.hoje ? ' hoje' : '' %><%= d.fimDeSemana && !d.hoje ? ' fds' : '' %>"<% if (d.membros.length) { %> title="<%= d.membros.map((m) => m.nome).join(', ') %>"<% } %>>
+        <small><%= d.semana %></small><b><%= d.dia %></b>
+        <% if (d.membros.length) { %>
+          <span class="pessoas">
+            <% for (const m of d.membros.slice(0, 2)) { %><span class="mini"><%= h.iniciais(m.nome) %></span><% } %>
+            <% if (d.membros.length > 2) { %><span class="mini mais">+<%= d.membros.length - 2 %></span><% } %>
+          </span>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<div class="grade-rodape">
   <section class="cartao">
-    <div class="cartao-cabecalho">
-      <h2>Aniversariantes de hoje</h2>
-    </div>
-    <div class="cartao-corpo">
-      <% if (!it.deHoje.length) { %>
-        <div class="vazio"><%~ it.h.icone('cake') %>Ninguém faz aniversário hoje.</div>
-      <% } else { %>
-        <div class="grade-artes">
-          <% for (const m of it.deHoje) { %>
-            <a class="arte" href="/membros/<%= m.id %>">
-              <img src="/membros/<%= m.id %>/previa.jpg?w=400" alt="Prévia da arte de <%= m.nome %>" loading="lazy">
-              <div class="arte-info">
-                <strong><%= m.nome %></strong>
-                <small><%= m.idade %> anos · <%= m.template?.nome %></small>
-                <span class="selo <%= m.situacao.status %>"><%= rotuloStatus[m.situacao.status] %><%= m.situacao.status === 'falhou' ? ` ${m.situacao.falhas}/3` : '' %></span>
-              </div>
-            </a>
-          <% } %>
+    <p class="sobretitulo">Neste mês</p>
+    <div class="numero-grande"><%= it.doMes.length %></div>
+    <p class="sutil pequeno" style="margin-top: 4px"><%= it.doMes.length === 1 ? 'aniversariante' : 'aniversariantes' %> em <%= h.nomeMes(it.mesAtual) %></p>
+    <div class="lista-pessoas">
+      <% for (const m of it.doMes.slice(0, 5)) { %>
+        <% const futuro = m.dias_ate > 0 && m.dias_ate <= 31; %>
+        <div class="linha-pessoa">
+          <div class="caixa-data"><b><%= h.dia(m.data_nascimento) %></b><span><%= h.mesCurto(m.data_nascimento) %></span></div>
+          <div class="quem"><a href="/membros/<%= m.id %>"><%= m.nome %></a><span><%= futuro ? `faz ${m.idade + 1}` : m.idade %> anos</span></div>
+          <% if (m.dias_ate === 0) { %><span class="pilula sol">Hoje</span><% } else if (futuro) { %><span class="pilula neutro"><%= m.dias_ate === 1 ? 'Amanhã' : `Em ${m.dias_ate} dias` %></span><% } %>
         </div>
+      <% } %>
+      <% if (it.doMes.length > 5) { %>
+        <div class="linha-pessoa"><a class="link" href="/membros?mes=<%= it.mesAtual %>">Ver todos os <%= it.doMes.length %><%~ h.icone('chevron-right') %></a></div>
       <% } %>
     </div>
   </section>
 
-  <div class="colunas">
-    <section class="cartao">
-      <div class="cartao-cabecalho"><h2>Próximos 7 dias</h2></div>
-      <div class="cartao-corpo sem-topo">
-        <% if (!it.proximos7.length) { %>
-          <div class="vazio"><%~ it.h.icone('calendar-days') %>Nenhum aniversário nos próximos 7 dias.</div>
-        <% } else { %>
-          <ul class="lista">
-            <% for (const m of it.proximos7) { %>
-              <li>
-                <%~ avatar(m) %>
-                <span class="principal">
-                  <a href="/membros/<%= m.id %>"><%= m.nome %></a>
-                  <small><%= it.h.formatarDiaMes(m.proximo_aniversario) %> · faz <%= m.idade + 1 %> anos</small>
-                </span>
-                <span class="pilula <%= m.dias_ate === 1 ? 'destaque' : '' %>"><%= m.dias_ate === 1 ? 'amanhã' : `em ${m.dias_ate} dias` %></span>
-              </li>
-            <% } %>
-          </ul>
-        <% } %>
+  <section class="cartao">
+    <p class="sobretitulo">Membros</p>
+    <div class="numero-grande"><%= it.totais.ativos %></div>
+    <p class="sutil pequeno" style="margin: 4px 0 6px"><%= it.totais.ativos === 1 ? 'ativo' : 'ativos' %> · <%= plural(it.totais.inativos, 'inativo', 'inativos') %></p>
+    <% for (const t of it.porTemplate) { %>
+      <div class="linha-barra">
+        <span><%= t.nome %></span>
+        <span class="barra"><i style="width: <%= Math.round((t.total / it.maiorTemplate) * 100) %>%; background: <%= t.cor_destaque %>"></i></span>
+        <b><%= t.total %></b>
       </div>
-    </section>
+    <% } %>
+  </section>
 
-    <section class="cartao">
-      <div class="cartao-cabecalho"><h2>Saúde do sistema</h2></div>
-      <div class="cartao-corpo sem-topo">
-        <ul class="lista saude">
+  <section class="cartao">
+    <div class="cartao-cabecalho">
+      <h2>Atividade recente</h2>
+      <% if (it.atividade.length) { %><a href="/historico" class="link">Histórico<%~ h.icone('chevron-right') %></a><% } %>
+    </div>
+    <% if (!it.atividade.length) { %>
+      <div class="vazio"><%~ h.icone('history') %>Nenhum envio ainda.</div>
+    <% } else { %>
+      <ul class="atividade">
+        <% for (const e of it.atividade) { %>
           <li>
-            <span class="rotulo"><%~ it.h.icone('smartphone') %>WhatsApp</span>
-            <% if (it.saude.whatsapp.conectado) { %>
-              <span class="selo conectado">Conectado</span>
-            <% } else { %>
-              <a class="selo desconectado" href="/configuracoes">Desconectado</a>
-            <% } %>
+            <span class="no <%= e.evento.tipo %>"></span>
+            <div style="min-width: 0"><b><%= e.evento.titulo %></b><div class="sutil pequeno descricao"><%= e.evento.descricao %></div></div>
+            <time datetime="<%= e.criado_em.replace(' ', 'T') %>"><%= e.criado_em.startsWith(it.hoje) ? h.hora(e.criado_em) : h.formatarBR(e.criado_em).slice(0, 5) %></time>
           </li>
-          <li>
-            <span class="rotulo"><%~ it.h.icone('message-circle') %>Grupo</span>
-            <% if (it.saude.grupo) { %><strong><%= it.saude.grupo %></strong><% } else { %><a class="selo desconectado" href="/configuracoes">Não configurado</a><% } %>
-          </li>
-          <li>
-            <span class="rotulo"><%~ it.h.icone('clock') %>Próximo envio</span>
-            <strong><%= it.saude.proximoEnvio %></strong>
-          </li>
-        </ul>
-      </div>
-    </section>
-  </div>
-
-  <div class="colunas">
-    <section class="cartao">
-      <div class="cartao-cabecalho">
-        <h2>Aniversariantes de <%= it.h.nomeMes(it.mesAtual) %></h2>
-        <span class="pilula"><%= it.doMes.length %></span>
-      </div>
-      <div class="cartao-corpo sem-topo">
-        <% if (!it.doMes.length) { %>
-          <div class="vazio"><%~ it.h.icone('calendar-days') %>Nenhum aniversariante neste mês.</div>
-        <% } else { %>
-          <ul class="lista">
-            <% for (const m of it.doMes) { %>
-              <li>
-                <span class="data-bloco"><strong><%= it.h.dia(m.data_nascimento) %></strong><small><%= it.h.mesCurto(m.data_nascimento) %></small></span>
-                <span class="principal">
-                  <a href="/membros/<%= m.id %>"><%= m.nome %></a>
-                  <small><%= m.template?.nome %></small>
-                </span>
-                <% if (m.dias_ate === 0) { %><span class="pilula destaque">hoje</span><% } %>
-              </li>
-            <% } %>
-          </ul>
         <% } %>
-      </div>
-    </section>
-
-    <section class="cartao">
-      <div class="cartao-cabecalho">
-        <h2>Últimos envios</h2>
-        <% if (it.ultimos.length) { %><a class="link-acao" href="/historico">Ver histórico<%~ it.h.icone('chevron-right') %></a><% } %>
-      </div>
-      <div class="cartao-corpo sem-topo">
-        <% if (!it.ultimos.length) { %>
-          <div class="vazio"><%~ it.h.icone('send') %>Nenhum envio ainda.</div>
-        <% } else { %>
-          <ul class="lista">
-            <% for (const e of it.ultimos) { %>
-              <li>
-                <span class="principal">
-                  <a href="/membros/<%= e.membro_id %>"><%= e.membro_nome %></a>
-                  <small><%= it.h.formatarDataHora(e.criado_em) %><%= e.template_nome ? ` · ${e.template_nome}` : '' %></small>
-                </span>
-                <span class="selo <%= e.status %>"><%= rotuloStatus[e.status] %></span>
-              </li>
-            <% } %>
-          </ul>
-        <% } %>
-      </div>
-    </section>
-  </div>
+      </ul>
+    <% } %>
+  </section>
 </div>

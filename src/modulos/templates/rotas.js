@@ -3,9 +3,9 @@ import * as configuracao from '#modulos/configuracao/index.js';
 import { gerarArte, miniatura, salvarImagem, removerArquivo, LARGURA, ALTURA } from '#modulos/arte/index.js';
 import { upload } from '#compartilhado/upload.js';
 import { render } from '#compartilhado/views.js';
-import { hojeISO } from '#compartilhado/datas.js';
+import { hojeISO, horaMinuto } from '#compartilhado/datas.js';
 import * as repo from './repositorio.js';
-import { validar, membroExemplo } from './servico.js';
+import { validar, membroExemplo, restaurar, legendaDeExemplo, coresDoEditor } from './servico.js';
 
 const rotas = Router();
 
@@ -17,7 +17,25 @@ function carregar(req, res, next) {
 }
 
 rotas.get('/', (req, res) => {
-  render(res, 'templates/lista', { lista: repo.listar(), ok: req.query.ok, erro: req.query.erro });
+  const lista = repo.listar();
+  const selecionado = lista.find((t) => t.id === Number(req.query.t)) ?? lista[0];
+  const cfg = configuracao.todas();
+  render(res, 'templates/lista', {
+    lista,
+    t: selecionado,
+    cores: coresDoEditor(selecionado.tipo),
+    legenda: legendaDeExemplo(selecionado),
+    grupo: cfg.grupo_whatsapp_nome || 'Grupo do ministério',
+    idadeLimite: cfg.idade_limite_infantil,
+    agora: horaMinuto(),
+    ok: req.query.ok,
+    erro: req.query.erro,
+  });
+});
+
+rotas.post('/:id/restaurar', carregar, (req, res) => {
+  restaurar(req.template);
+  res.redirect(`/templates?t=${req.template.id}&ok=restaurado`);
 });
 
 rotas.post('/:id', carregar, upload.single('fundo'), async (req, res) => {
@@ -36,10 +54,10 @@ rotas.post('/:id', carregar, upload.single('fundo'), async (req, res) => {
       dados.fundo = null;
     }
   } catch {
-    return res.redirect(`/templates?erro=${t.id}#template-${t.id}`);
+    return res.redirect(`/templates?t=${t.id}&erro=fundo`);
   }
   repo.atualizar(t.id, dados);
-  res.redirect(`/templates?ok=${t.id}#template-${t.id}`);
+  res.redirect(`/templates?t=${t.id}&ok=salvo`);
 });
 
 rotas.get('/:id/previa.jpg', carregar, async (req, res, next) => {

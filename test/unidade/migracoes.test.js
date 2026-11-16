@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { listarMigracoes, abrir, fechar, getDb } from '#compartilhado/banco/index.js';
+import { TEMPLATES_PADRAO } from '#modulos/templates/servico.js';
 
 test('migrações são sequenciais a partir de 001', () => {
   const versoes = listarMigracoes().map((m) => m.versao);
@@ -50,4 +51,13 @@ test('banco existente na versão 1 é atualizado sem duplicar nem alterar templa
   );
   fechar();
   fs.rmSync(path.dirname(arquivo), { recursive: true });
+});
+
+test('"Restaurar padrão" usa os mesmos valores com que a migração cria os templates', () => {
+  abrir(':memory:');
+  const linhas = /** @type {any[]} */ (
+    getDb().prepare('SELECT tipo, nome, cor_destaque, mensagem_arte, legenda FROM template').all()
+  );
+  for (const { tipo, ...valores } of linhas) assert.deepEqual(valores, TEMPLATES_PADRAO[tipo], tipo);
+  fechar();
 });

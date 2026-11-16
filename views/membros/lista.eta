@@ -1,46 +1,51 @@
 <% layout('../layout', { titulo: 'Membros' }) %>
-<header class="cabecalho">
+<% const h = it.h; const f = it.filtros; %>
+<% const temExtra = Boolean(f.situacao || f.mes); %>
+<div class="cabecalho">
   <div>
+    <p class="sobretitulo">Cadastro</p>
     <h1>Membros</h1>
-    <p>Cadastro dos membros que recebem a arte de aniversário.</p>
+    <p class="subtitulo">Quem recebe a arte de aniversário no grupo.</p>
   </div>
-  <a class="botao" href="/membros/novo"><%~ it.h.icone('plus') %>Novo membro</a>
-</header>
+  <div class="acoes"><a href="/membros/novo" class="botao escuro"><%~ h.icone('plus') %>Novo membro</a></div>
+</div>
 
-<section class="cartao">
-  <form class="barra-filtros" method="get" action="/membros" role="search"
-        hx-get="/membros" hx-target="#linhas" hx-push-url="true"
-        hx-trigger="input changed delay:300ms from:input[name=busca], change">
-    <label class="campo-busca">
-      <span class="oculto-visual">Buscar por nome</span>
-      <%~ it.h.icone('search') %>
-      <input type="search" name="busca" placeholder="Buscar por nome" value="<%= it.filtros.busca %>">
-    </label>
-    <select name="sexo" aria-label="Sexo">
-      <option value="">Todos os sexos</option>
-      <option value="M" <%= it.filtros.sexo === 'M' ? 'selected' : '' %>>Masculino</option>
-      <option value="F" <%= it.filtros.sexo === 'F' ? 'selected' : '' %>>Feminino</option>
-    </select>
-    <select name="situacao" aria-label="Situação">
-      <option value="">Ativos e inativos</option>
-      <option value="ativo" <%= it.filtros.situacao === 'ativo' ? 'selected' : '' %>>Somente ativos</option>
-      <option value="inativo" <%= it.filtros.situacao === 'inativo' ? 'selected' : '' %>>Somente inativos</option>
-    </select>
-    <select name="mes" aria-label="Mês de aniversário">
-      <option value="">Todos os meses</option>
-      <% for (let m = 1; m <= 12; m++) { %>
-        <option value="<%= m %>" <%= Number(it.filtros.mes) === m ? 'selected' : '' %>><%= it.h.nomeMes(m)[0].toUpperCase() + it.h.nomeMes(m).slice(1) %></option>
-      <% } %>
-    </select>
-    <noscript><button class="botao secundario">Filtrar</button></noscript>
-  </form>
-
-  <div class="tabela-rolavel">
-    <table>
-      <thead>
-        <tr><th>Nome</th><th>Nascimento</th><th>Idade</th><th>Sexo</th><th>Situação</th><th>Template</th></tr>
-      </thead>
-      <tbody id="linhas"><%~ include('./linhas', it) %></tbody>
-    </table>
+<form class="ferramentas" method="get" action="/membros" role="search"
+      hx-get="/membros" hx-target="#grade" hx-push-url="true"
+      hx-trigger="input changed delay:300ms from:input[name=busca], change">
+  <div class="busca">
+    <label class="oculto-visual" for="busca">Buscar por nome</label>
+    <%~ h.icone('search') %>
+    <input id="busca" type="search" name="busca" placeholder="Buscar por nome" value="<%= f.busca %>" autocomplete="off">
   </div>
-</section>
+  <div class="chips" role="radiogroup" aria-label="Filtrar por template">
+    <label class="chip"><input type="radio" name="template" value="" <%= !f.template ? 'checked' : '' %>>Todos <b id="conta-todos"><%= it.contagem.todos %></b></label>
+    <% for (const t of it.templates) { %>
+      <label class="chip"><input type="radio" name="template" value="<%= t.tipo %>" <%= f.template === t.tipo ? 'checked' : '' %>><span class="quadradinho" style="background: <%= t.cor_destaque %>"></span><%= t.nome %> <b id="conta-<%= t.tipo %>"><%= it.contagem[t.tipo] %></b></label>
+    <% } %>
+    <details class="filtros-extra">
+      <summary class="chip<%= temExtra ? ' com-filtro' : '' %>"><%~ h.icone('list-filter') %>Mês e situação</summary>
+      <div class="painel-filtros">
+        <div class="campo"><label for="situacao">Situação</label>
+          <select id="situacao" name="situacao">
+            <option value="">Ativos e inativos</option>
+            <option value="ativo" <%= f.situacao === 'ativo' ? 'selected' : '' %>>Somente ativos</option>
+            <option value="inativo" <%= f.situacao === 'inativo' ? 'selected' : '' %>>Somente inativos</option>
+          </select>
+        </div>
+        <div class="campo"><label for="mes">Mês de aniversário</label>
+          <select id="mes" name="mes">
+            <option value="">Todos os meses</option>
+            <% for (let m = 1; m <= 12; m++) { %>
+              <option value="<%= m %>" <%= Number(f.mes) === m ? 'selected' : '' %>><%= h.capitalizar(h.nomeMes(m)) %></option>
+            <% } %>
+          </select>
+        </div>
+        <noscript><button class="botao escuro pequeno">Filtrar</button></noscript>
+      </div>
+    </details>
+  </div>
+  <noscript><button class="botao secundario">Buscar</button></noscript>
+</form>
+
+<div id="grade" class="grade-membros" aria-live="polite"><%~ include('./grade', it) %></div>

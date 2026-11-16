@@ -1,70 +1,69 @@
 <% layout('../layout', { titulo: 'Configurações' }) %>
-<% const c = it.cfg; const e = it.erros || {}; %>
-<header class="cabecalho">
+<% const h = it.h; const c = it.cfg; const e = it.erros || {}; %>
+<% const invalido = (campo) => (e[campo] ? 'aria-invalid="true"' : ''); %>
+<div class="cabecalho">
   <div>
+    <p class="sobretitulo">Sistema</p>
     <h1>Configurações</h1>
-    <p>Conexão com o WhatsApp e regras do envio automático.</p>
+    <p class="subtitulo">Conexão com o WhatsApp e regras do envio automático.</p>
   </div>
-</header>
+</div>
 
-<div class="pilha-secoes">
-  <% if (it.ok) { %><p class="alerta sucesso" role="status"><%~ it.h.icone('circle-check') %><span>Configurações salvas.</span></p><% } %>
+<% if (it.ok) { %><p class="alerta ok" role="status" style="margin-bottom: 20px"><%~ h.icone('circle-check') %><span>Configurações salvas.</span></p><% } %>
 
-  <div class="colunas">
-    <section class="cartao">
-      <div class="cartao-cabecalho"><h2>WhatsApp</h2></div>
-      <div class="cartao-corpo">
-        <%~ include('./whatsapp', { wa: it.wa, h: it.h }) %>
-      </div>
-    </section>
-
-    <form class="cartao" method="post" action="/configuracoes">
-      <div class="cartao-cabecalho"><h2>Envio automático</h2></div>
-      <div class="cartao-corpo formulario">
-        <label class="interruptor">
-          <input type="checkbox" name="envio_ativo" <%= c.envio_ativo === '1' ? 'checked' : '' %>>
-          <span>Envio automático ativo<small>Desligue para pausar os envios sem perder as configurações.</small></span>
-        </label>
-        <label class="campo"><span>Grupo de destino</span>
-          <% if (it.grupos.length) { %>
-            <select name="grupo_whatsapp">
-              <option value="">Escolha um grupo</option>
-              <% for (const g of it.grupos) { %>
-                <option value="<%= g.id %>" <%= g.id === c.grupo_whatsapp ? 'selected' : '' %>><%= g.nome %></option>
-              <% } %>
-            </select>
-          <% } else { %>
-            <input value="<%= c.grupo_whatsapp_nome || c.grupo_whatsapp || 'Nenhum grupo escolhido' %>" disabled>
-            <small><%= it.erroGrupos ? 'Erro ao listar os grupos: ' + it.erroGrupos : 'Conecte o WhatsApp para escolher o grupo.' %></small>
-          <% } %>
-        </label>
-        <div class="duas-colunas">
-          <label class="campo"><span>Horário do envio</span>
-            <input type="time" name="horario_envio" value="<%= c.horario_envio %>" required <%~ e.horario_envio ? 'aria-invalid="true"' : '' %>>
-            <% if (e.horario_envio) { %><small class="erro"><%= e.horario_envio %></small><% } %>
-          </label>
-          <label class="campo"><span>Arte infantil abaixo de</span>
-            <input type="number" name="idade_limite_infantil" min="1" max="18" value="<%= c.idade_limite_infantil %>" required <%~ e.idade_limite_infantil ? 'aria-invalid="true"' : '' %>>
-            <% if (e.idade_limite_infantil) { %><small class="erro"><%= e.idade_limite_infantil %></small><% } else { %><small>anos de idade</small><% } %>
-          </label>
-        </div>
-        <label class="campo"><span>Nome do ministério</span>
-          <input name="nome_ministerio" value="<%= c.nome_ministerio %>" required maxlength="80" <%~ e.nome_ministerio ? 'aria-invalid="true"' : '' %>>
-          <% if (e.nome_ministerio) { %><small class="erro"><%= e.nome_ministerio %></small><% } else { %><small>Aparece na arte e na variável {ministerio} da mensagem.</small><% } %>
-        </label>
-        <div class="acoes"><button class="botao">Salvar configurações</button></div>
-      </div>
-    </form>
-  </div>
+<div class="grade-config">
+  <%~ include('./whatsapp', { wa: it.wa, h }) %>
 
   <section class="cartao">
-    <div class="cartao-cabecalho"><h2>Disparo manual</h2></div>
-    <div class="cartao-corpo formulario">
-      <p class="sutil">O sistema confere os aniversariantes a cada 15 minutos depois do horário configurado. Rode um ciclo agora para enviar sem esperar o horário. Quem já recebeu hoje não recebe de novo.</p>
-      <div class="acoes">
-        <button class="botao secundario" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this"><%~ it.h.icone('play') %>Rodar ciclo agora</button>
+    <div class="cartao-cabecalho"><h2>Envio automático</h2></div>
+    <form class="formulario" method="post" action="/configuracoes">
+      <label class="interruptor">
+        <input type="checkbox" name="envio_ativo" <%= c.envio_ativo === '1' ? 'checked' : '' %>>
+        <span><b class="so-ligado">Ligado</b><b class="so-desligado">Desligado</b><span class="ajuda">Desligue para pausar os envios sem perder as configurações.</span></span>
+      </label>
+      <div class="duas-colunas">
+        <div class="campo"><label for="horario_envio">Horário do envio</label>
+          <input id="horario_envio" class="entrada-hora" type="time" name="horario_envio" value="<%= c.horario_envio %>" required <%~ invalido('horario_envio') %>>
+          <% if (e.horario_envio) { %><span class="ajuda erro"><%= e.horario_envio %></span><% } %>
+        </div>
+        <div class="campo"><label for="idade_limite_infantil">Arte infantil abaixo de</label>
+          <div class="sufixo">
+            <input id="idade_limite_infantil" type="number" name="idade_limite_infantil" min="1" max="18" value="<%= c.idade_limite_infantil %>" required <%~ invalido('idade_limite_infantil') %>>
+            <span>anos</span>
+          </div>
+          <% if (e.idade_limite_infantil) { %><span class="ajuda erro"><%= e.idade_limite_infantil %></span><% } %>
+        </div>
       </div>
-      <div id="resultado-ciclo" aria-live="polite"></div>
-    </div>
+      <div class="campo"><label for="grupo_whatsapp">Grupo de destino</label>
+        <% if (it.grupos.length) { %>
+          <select id="grupo_whatsapp" name="grupo_whatsapp">
+            <option value="">Escolha um grupo</option>
+            <% for (const g of it.grupos) { %>
+              <option value="<%= g.id %>" <%= g.id === c.grupo_whatsapp ? 'selected' : '' %>><%= g.nome %></option>
+            <% } %>
+          </select>
+        <% } else { %>
+          <input id="grupo_whatsapp" value="<%= c.grupo_whatsapp_nome || c.grupo_whatsapp || 'Nenhum grupo escolhido' %>" disabled>
+          <span class="ajuda"><%= it.erroGrupos ? 'Erro ao listar os grupos: ' + it.erroGrupos : 'Conecte o WhatsApp para trocar o grupo.' %></span>
+        <% } %>
+      </div>
+      <div class="campo"><label for="nome_ministerio">Nome do ministério</label>
+        <input id="nome_ministerio" name="nome_ministerio" value="<%= c.nome_ministerio %>" required maxlength="80" <%~ invalido('nome_ministerio') %>>
+        <% if (e.nome_ministerio) { %><span class="ajuda erro"><%= e.nome_ministerio %></span><% } else { %><span class="ajuda">Aparece na arte e na variável {ministerio} da mensagem.</span><% } %>
+      </div>
+      <div class="barra-salvar inicio"><button class="botao primario">Salvar configurações</button></div>
+    </form>
   </section>
 </div>
+
+<section class="faixa-escura">
+  <span class="confete" aria-hidden="true" style="width: 10px; height: 10px; background: #F3C26B; top: 22px; left: 70%; transform: rotate(20deg)"></span>
+  <span class="confete" aria-hidden="true" style="width: 7px; height: 14px; background: #8E7FF2; top: 68%; left: 82%; transform: rotate(-25deg)"></span>
+  <span class="confete" aria-hidden="true" style="width: 8px; height: 8px; background: #6FCF9F; top: 30%; left: 92%; transform: rotate(40deg)"></span>
+  <div>
+    <h2>Disparo manual</h2>
+    <p>O sistema confere os aniversariantes a cada 15 minutos depois do horário configurado. Rode um ciclo agora para enviar sem esperar. Quem já recebeu hoje não recebe de novo.</p>
+    <div id="resultado-ciclo" class="resultado" aria-live="polite"></div>
+  </div>
+  <button class="botao claro" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this"><%~ h.icone('play') %>Rodar ciclo agora</button>
+</section>

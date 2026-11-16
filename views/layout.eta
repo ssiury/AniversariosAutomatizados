@@ -17,63 +17,121 @@
     })();
   </script>
   <link rel="preload" href="/static/fontes/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fontes/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/estilo.css">
   <script src="/static/htmx.min.js" defer></script>
 </head>
 <% const botaoTema = `
-  <button type="button" class="item-acao" data-alternar-tema aria-label="Alternar tema claro e escuro">
+  <button type="button" class="botao-icone" data-alternar-tema aria-label="Alternar entre tema claro e escuro" title="Alternar tema">
     <span class="so-claro">${it.h.icone('moon')}</span><span class="so-escuro">${it.h.icone('sun')}</span>
-    <span class="rotulo-acao"><span class="so-claro">Tema escuro</span><span class="so-escuro">Tema claro</span></span>
   </button>`; %>
+<% const marca = `
+  <span class="logo">${it.h.icone('cake')}</span>
+  <div><b>Aniversários</b><small>Ministério de Mídia</small></div>`; %>
+<body>
 <% if (it.usuario) { %>
-<body>
-  <div class="app">
-    <aside class="lateral">
-      <a class="marca" href="/">
-        <span class="marca-simbolo"><%~ it.h.icone('cake') %></span>
-        <span class="marca-texto"><strong>Aniversários</strong><span>Ministério de Mídia</span></span>
-      </a>
+  <% const links = [
+    ['/', 'Dashboard', 'Início', 'layout-dashboard'],
+    ['/membros', 'Membros', 'Membros', 'users'],
+    ['/templates', 'Templates', 'Artes', 'palette'],
+    ['/historico', 'Histórico', 'Histórico', 'history'],
+    ['/configuracoes', 'Configurações', 'Ajustes', 'sliders-vertical'],
+  ]; %>
+  <% const ativo = (href) => (href === '/' ? it.caminho === '/' : (it.caminho || '').startsWith(href)); %>
+  <% const wa = it.whatsapp || {}; %>
+  <header class="topo">
+    <a href="/" class="marca"><%~ marca %></a>
+    <nav class="pilulas" aria-label="Menu principal">
+      <% for (const [href, rotulo, , icone] of links) { %>
+        <a href="<%= href %>" <%~ ativo(href) ? 'aria-current="page"' : '' %>><%~ it.h.icone(icone) %><span><%= rotulo %></span></a>
+      <% } %>
+    </nav>
+    <div class="topo-direita">
+      <% if (wa.conectado) { %>
+        <a href="/configuracoes" class="estado-whatsapp conectado" aria-label="WhatsApp conectado"><i></i><span>WhatsApp conectado</span></a>
+      <% } else if (!wa.desativado) { %>
+        <a href="/configuracoes" class="estado-whatsapp" aria-label="WhatsApp desconectado: conectar"><i></i><span>WhatsApp desconectado</span></a>
+      <% } %>
+      <%~ botaoTema %>
+      <form method="post" action="/logout">
+        <button class="botao-icone" aria-label="Sair" title="Sair"><%~ it.h.icone('log-out') %></button>
+      </form>
+    </div>
+  </header>
 
-      <nav class="navegacao" aria-label="Principal">
-        <span class="navegacao-rotulo">Menu</span>
-        <% const links = [
-          ['/', 'Dashboard', 'layout-dashboard'],
-          ['/membros', 'Membros', 'users'],
-          ['/templates', 'Templates', 'palette'],
-          ['/historico', 'Histórico', 'history'],
-          ['/configuracoes', 'Configurações', 'settings'],
-        ]; %>
-        <% for (const [href, rotulo, icone] of links) { %>
-          <% const ativo = href === '/' ? it.caminho === '/' : (it.caminho || '').startsWith(href); %>
-          <a href="<%= href %>" <%~ ativo ? 'aria-current="page"' : '' %>><%~ it.h.icone(icone) %><span><%= rotulo %></span></a>
-        <% } %>
-      </nav>
+  <main class="conteudo"><%~ it.body %></main>
 
-      <div class="lateral-rodape">
-        <%~ botaoTema %>
-        <form method="post" action="/logout">
-          <button class="item-acao" aria-label="Sair"><%~ it.h.icone('log-out') %><span class="rotulo-acao">Sair</span></button>
-        </form>
-      </div>
-    </aside>
-
-    <main class="conteudo"><%~ it.body %></main>
-  </div>
+  <nav class="abas" aria-label="Navegação">
+    <% for (const [href, , curto, icone] of links) { %>
+      <a href="<%= href %>" <%~ ativo(href) ? 'aria-current="page"' : '' %>><%~ it.h.icone(icone) %><span><%= curto %></span></a>
+    <% } %>
+  </nav>
 <% } else { %>
-<body>
   <main class="tela-login">
     <%~ botaoTema %>
     <%~ it.body %>
   </main>
 <% } %>
   <script>
-    document.addEventListener('click', function (evento) {
-      if (!evento.target.closest('[data-alternar-tema]')) return;
-      var raiz = document.documentElement;
-      var tema = raiz.dataset.tema === 'escuro' ? 'claro' : 'escuro';
-      raiz.dataset.tema = tema;
-      try { localStorage.setItem('tema', tema); } catch (e) {}
-    });
+    // Interações pequenas por delegação de eventos. Sem JavaScript, os formulários funcionam do mesmo jeito.
+    (function () {
+      var HEX = /^#[0-9a-f]{6}$/i;
+
+      function marcarCor(hex) {
+        document.querySelectorAll('[data-cor]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b.dataset.cor.toLowerCase() === hex.toLowerCase()));
+        });
+      }
+      function aplicarCor(hex) {
+        var campo = document.getElementById('cor_destaque');
+        var seletor = document.querySelector('[data-seletor-cor]');
+        if (campo) campo.value = hex.toUpperCase();
+        if (seletor) seletor.value = hex.toLowerCase();
+        marcarCor(hex);
+      }
+
+      document.addEventListener('click', function (evento) {
+        var alvo = evento.target;
+
+        if (alvo.closest('[data-alternar-tema]')) {
+          var raiz = document.documentElement;
+          var tema = raiz.dataset.tema === 'escuro' ? 'claro' : 'escuro';
+          raiz.dataset.tema = tema;
+          try { localStorage.setItem('tema', tema); } catch (e) {}
+          return;
+        }
+
+        var cor = alvo.closest('[data-cor]');
+        if (cor) return aplicarCor(cor.dataset.cor);
+
+        var variavel = alvo.closest('[data-variavel]');
+        if (variavel) {
+          var texto = document.getElementById(variavel.dataset.alvo);
+          if (!texto) return;
+          var ini = texto.selectionStart, fim = texto.selectionEnd, valor = variavel.dataset.variavel;
+          texto.setRangeText(valor, ini, fim, 'end');
+          texto.focus();
+        }
+      });
+
+      document.addEventListener('input', function (evento) {
+        var alvo = evento.target;
+        if (alvo.matches('[data-seletor-cor]')) aplicarCor(alvo.value);
+        if (alvo.id === 'cor_destaque' && HEX.test(alvo.value)) {
+          var seletor = document.querySelector('[data-seletor-cor]');
+          if (seletor) seletor.value = alvo.value.toLowerCase();
+          marcarCor(alvo.value);
+        }
+      });
+
+      // Mostra o nome do arquivo escolhido (ou arrastado) na área de upload.
+      document.addEventListener('change', function (evento) {
+        var alvo = evento.target;
+        if (!alvo.matches('.soltar input[type=file]') || !alvo.files.length) return;
+        var rotulo = alvo.closest('.soltar').querySelector('[data-arquivo]');
+        if (rotulo) rotulo.textContent = alvo.files[0].name;
+      });
+    })();
   </script>
 </body>
 </html>

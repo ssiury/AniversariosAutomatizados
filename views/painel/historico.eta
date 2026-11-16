@@ -1,52 +1,59 @@
 <% layout('../layout', { titulo: 'Histórico' }) %>
-<% const rotuloStatus = { enviado: 'Enviado', falhou: 'Falhou', teste: 'Teste' }; %>
-<header class="cabecalho">
+<% const h = it.h; const c = it.contagens; %>
+<% const icone = { sucesso: 'check', falha: 'x', teste: 'send' }; %>
+<% const cor = { sucesso: 'ok', falha: 'falha', teste: 'neutro' }; %>
+<% const filtros = [['', 'Todos', c.total], ['enviado', 'Enviados', c.enviados], ['teste', 'Testes', c.testesTotal], ['falhas', 'Falhas', c.falhas]]; %>
+<div class="cabecalho">
   <div>
+    <p class="sobretitulo">Registro</p>
     <h1>Histórico</h1>
-    <p>Todas as tentativas de envio, das mais recentes para as mais antigas.</p>
+    <p class="subtitulo">Todas as tentativas de envio, das mais recentes para as mais antigas.</p>
   </div>
-</header>
+</div>
+
+<div class="resumo">
+  <div class="cartao cartao-resumo"><span class="icone-caixa ok"><%~ h.icone('check') %></span><div><div class="numero-grande"><%= c.enviados %></div><span class="sutil pequeno"><%= c.enviados === 1 ? 'enviado ao grupo' : 'enviados ao grupo' %></span></div></div>
+  <div class="cartao cartao-resumo"><span class="icone-caixa neutro"><%~ h.icone('send') %></span><div><div class="numero-grande"><%= c.testes %></div><span class="sutil pequeno"><%= c.testes === 1 ? 'teste enviado' : 'testes enviados' %></span></div></div>
+  <div class="cartao cartao-resumo"><span class="icone-caixa falha"><%~ h.icone('x') %></span><div><div class="numero-grande"><%= c.falhas %></div><span class="sutil pequeno"><%= c.falhas === 1 ? 'falha' : 'falhas' %></span></div></div>
+  <div class="cartao cartao-resumo"><span class="icone-caixa acento"><%~ h.icone('history') %></span><div><div class="numero-grande"><%= c.total %></div><span class="sutil pequeno">registros no total</span></div></div>
+</div>
 
 <section class="cartao">
-  <form class="barra-filtros" method="get" action="/historico">
-    <select name="status" onchange="this.form.submit()" aria-label="Filtrar por status">
-      <option value="">Todos os status</option>
-      <% for (const s of ['enviado', 'falhou', 'teste']) { %>
-        <option value="<%= s %>" <%= it.status === s ? 'selected' : '' %>><%= rotuloStatus[s] %></option>
-      <% } %>
-    </select>
-    <noscript><button class="botao secundario">Filtrar</button></noscript>
-    <span class="contagem"><%= it.total %> registro<%= it.total === 1 ? '' : 's' %></span>
-  </form>
+  <nav class="chips" aria-label="Filtrar por status" style="margin-bottom: 16px">
+    <% for (const [valor, rotulo, n] of filtros) { %>
+      <a href="/historico<%= valor ? '?status=' + valor : '' %>" class="chip" <%~ it.status === valor ? 'aria-current="page"' : '' %>><%= rotulo %><% if (n !== null) { %> <b><%= n %></b><% } %></a>
+    <% } %>
+  </nav>
 
-  <div class="tabela-rolavel">
-    <table>
-      <thead>
-        <tr><th>Data e hora</th><th>Membro</th><th>Aniversário</th><th>Template</th><th>Status</th><th>Tentativa</th><th>Detalhe</th><th><span class="oculto-visual">Arte</span></th></tr>
-      </thead>
-      <tbody>
-      <% if (!it.linhas.length) { %><tr><td colspan="8" class="vazio-tabela">Nenhum envio registrado.</td></tr><% } %>
-      <% for (const e of it.linhas) { %>
-        <tr class="<%= e.status === 'falhou' ? 'linha-falha' : '' %>">
-          <td class="numero"><%= it.h.formatarDataHora(e.criado_em) %></td>
-          <td><a href="/membros/<%= e.membro_id %>"><%= e.membro_nome %></a></td>
-          <td class="numero"><%= it.h.formatarBR(e.data_aniversario) %></td>
-          <td><% if (e.template_tipo) { %><span class="etiqueta <%= e.template_tipo %>"><%= e.template_nome %></span><% } else { %><span class="sutil">—</span><% } %></td>
-          <td><span class="selo <%= e.status %>"><%= rotuloStatus[e.status] %></span></td>
-          <td class="numero"><%= e.tentativa %>/3</td>
-          <td class="detalhe" title="<%= e.detalhe || '' %>"><%= e.detalhe || '' %></td>
-          <td><% if (e.arquivo_arte) { %><a class="link-acao" href="/storage/<%= e.arquivo_arte %>" target="_blank" rel="noopener"><%~ it.h.icone('image') %>Arte</a><% } %></td>
-        </tr>
-      <% } %>
-      </tbody>
-    </table>
-  </div>
+  <% if (!it.grupos.length) { %>
+    <div class="vazio"><%~ h.icone('history') %>Nenhum envio registrado<%= it.status ? ' com esse filtro' : '' %>.</div>
+  <% } %>
+  <% for (const g of it.grupos) { %>
+    <p class="cabecalho-dia"><%= g.relativo ? `${g.relativo} · ` : `${h.capitalizar(h.diaSemana(g.data))}, ` %><%= h.formatarDiaMes(g.data) %></p>
+    <% for (const e of g.envios) { %>
+      <div class="evento">
+        <span class="hora"><%= h.hora(e.criado_em) %></span>
+        <span class="no <%= cor[e.evento.tipo] %>"><%~ h.icone(icone[e.evento.tipo]) %></span>
+        <div>
+          <div class="titulo-evento"><%= e.evento.titulo %></div>
+          <div class="sutil pequeno"><%= e.evento.descricao %><%= e.evento.tipo !== 'falha' ? ` · aniversário ${h.formatarBR(e.data_aniversario).slice(0, 5)}` : '' %></div>
+          <div class="meta">
+            <span class="pilula <%= e.evento.rotulo === 'Teste' ? 'neutro' : 'acento' %>"><%= e.evento.rotulo %></span>
+            <% if (e.evento.referencia) { %><span class="mono" title="<%= e.evento.referencia %>"><%= e.evento.referencia %></span><% } %>
+          </div>
+        </div>
+        <% if (e.arquivo_arte) { %>
+          <a href="/storage/<%= e.arquivo_arte %>" class="botao secundario pequeno acao" target="_blank" rel="noopener"><%~ h.icone('image') %>Arte</a>
+        <% } %>
+      </div>
+    <% } %>
+  <% } %>
 
   <% if (it.paginas > 1) { %>
-  <nav class="paginacao" aria-label="Paginação">
-    <span><% if (it.pagina > 1) { %><a href="?status=<%= it.status %>&pagina=<%= it.pagina - 1 %>"><%~ it.h.icone('chevron-left') %>Anterior</a><% } %></span>
-    <span>Página <%= it.pagina %> de <%= it.paginas %></span>
-    <span><% if (it.pagina < it.paginas) { %><a href="?status=<%= it.status %>&pagina=<%= it.pagina + 1 %>">Próxima<%~ it.h.icone('chevron-right') %></a><% } %></span>
-  </nav>
+    <nav class="paginacao" aria-label="Paginação">
+      <span><% if (it.pagina > 1) { %><a class="link" href="?status=<%= it.status %>&pagina=<%= it.pagina - 1 %>">Anterior</a><% } %></span>
+      <span>Página <%= it.pagina %> de <%= it.paginas %></span>
+      <span><% if (it.pagina < it.paginas) { %><a class="link" href="?status=<%= it.status %>&pagina=<%= it.pagina + 1 %>">Próxima<%~ h.icone('chevron-right') %></a><% } %></span>
+    </nav>
   <% } %>
 </section>

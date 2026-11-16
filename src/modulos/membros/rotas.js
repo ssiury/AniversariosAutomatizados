@@ -7,7 +7,7 @@ import { upload } from '#compartilhado/upload.js';
 import { render, ehHtmx } from '#compartilhado/views.js';
 import { hojeISO } from '#compartilhado/datas.js';
 import * as repo from './repositorio.js';
-import { validar, listarDetalhado, detalhar } from './servico.js';
+import { validar, listarParaPainel, detalhar } from './servico.js';
 
 const rotas = Router();
 
@@ -22,12 +22,19 @@ function carregar(req, res, next) {
 rotas.get('/', (req, res) => {
   const filtros = {
     busca: String(req.query.busca ?? ''),
-    sexo: String(req.query.sexo ?? ''),
+    template: String(req.query.template ?? ''),
     situacao: String(req.query.situacao ?? ''),
     mes: String(req.query.mes ?? ''),
   };
-  const lista = listarDetalhado(filtros);
-  render(res, ehHtmx(req) ? 'membros/linhas' : 'membros/lista', { lista, filtros });
+  const { lista, contagem } = listarParaPainel(filtros);
+  // No htmx só a grade é trocada; as contagens dos chips vão junto como swap out-of-band.
+  render(res, ehHtmx(req) ? 'membros/grade' : 'membros/lista', {
+    lista,
+    contagem,
+    filtros,
+    templates: templates.listar(),
+    htmx: ehHtmx(req),
+  });
 });
 
 rotas.get('/novo', (_req, res) => {
