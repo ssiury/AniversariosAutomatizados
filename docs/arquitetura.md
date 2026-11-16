@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Sistema** | Aniversários Automatizados — Ministério de Mídia |
-| **Versão do documento** | 1.2 |
+| **Versão do documento** | 1.3 |
 | **Última revisão** | 16/11/2026 |
 | **Autor** | Iury Sousa dos Santos |
 | **Status** | Vigente |
@@ -145,11 +145,15 @@ Cada decisão segue o formato contexto → decisão → consequências.
   incremental, status do QR Code, botões de envio).
 - **Consequências:** sem SPA, sem bundler e sem etapa de build. O htmx é servido diretamente de
   `node_modules`.
-- **Interface:** um único `public/estilo.css` com tokens de design (cores em OKLCH, espaçamento,
-  raios e sombras) para os temas claro e escuro. O tema segue o sistema operacional e pode ser
-  trocado por um botão; a escolha fica no `localStorage` e é aplicada antes da primeira pintura.
-  Ícones [Lucide](https://lucide.dev) são desenhados inline pelo helper `icone()`, e a fonte Inter é
-  auto-hospedada. Só os ícones e fontes usados ficam no repositório (`npm run assets`), sem CDN.
+- **Interface:** segue o protótipo "Redesign do painel". Um único `public/estilo.css` concentra os
+  tokens de design (cores, raios, sombras) do tema claro e do escuro, derivado da mesma paleta. O
+  tema segue o sistema operacional e pode ser trocado por um botão; a escolha fica no
+  `localStorage` e é aplicada antes da primeira pintura. Navegação em pílulas no topo e barra de
+  abas no celular. Títulos em Bricolage Grotesque, texto em Inter e códigos em JetBrains Mono, todas
+  auto-hospedadas; ícones [Lucide](https://lucide.dev) desenhados inline pelo helper `icone()`. Só
+  os ícones e fontes usados ficam no repositório (`npm run assets`), sem CDN. O pouco JavaScript
+  próprio (tema, paleta de cores, inserção de variáveis, nome do arquivo) fica no layout, por
+  delegação de eventos, e os formulários funcionam sem ele.
 
 ### DA-04 — SQLite embarcado
 
@@ -663,17 +667,18 @@ Todas as telas, exceto `/login` e `/saude`, exigem autenticação.
 | GET, POST | `/login` | Autenticação |
 | POST | `/logout` | Encerra a sessão |
 | GET | `/` | Dashboard |
-| GET | `/membros` | Lista com busca e filtros. Em requisições htmx, devolve só as linhas |
+| GET | `/membros` | Cartões com busca e filtros por template, situação e mês. Em requisições htmx, devolve só a grade e atualiza as contagens dos filtros (swap out-of-band) |
 | GET | `/membros/novo` | Formulário de cadastro |
 | POST | `/membros` | Cria um membro |
 | GET, POST | `/membros/:id` | Exibe e atualiza um membro |
 | POST | `/membros/:id/excluir` | Exclui o membro, sua foto e seu histórico |
 | GET | `/membros/:id/previa.jpg` | Prévia da arte do próximo aniversário (`?w=` para miniatura) |
 | POST | `/membros/:id/enviar` | "Enviar agora" (fragmento htmx) |
-| GET | `/templates` | Os três templates lado a lado |
+| GET | `/templates?t=:id` | Seletor dos três templates, editor e prévia da arte e da mensagem no WhatsApp |
 | POST | `/templates/:id` | Atualiza um template, incluindo o fundo |
+| POST | `/templates/:id/restaurar` | Volta nome, cor e textos ao padrão de instalação (mantém o fundo) |
 | GET | `/templates/:id/previa.jpg` | Prévia com um membro fictício |
-| GET | `/historico` | Envios paginados (50 por página), com filtro por status |
+| GET | `/historico` | Resumo, linha do tempo agrupada por dia e filtro (`enviado`, `teste` ou `falhas`), 50 por página |
 | GET, POST | `/configuracoes` | WhatsApp, grupo, horário, idade limite e nome do ministério |
 | GET | `/configuracoes/whatsapp` | Fragmento com o QR Code e o status (consultado pelo htmx) |
 | POST | `/configuracoes/whatsapp/desconectar` | Encerra a sessão e gera um novo QR Code |
@@ -682,15 +687,17 @@ Todas as telas, exceto `/login` e `/saude`, exigem autenticação.
 
 ### 10.1 Dashboard
 
-| Indicador | Conteúdo |
+| Bloco | Conteúdo |
 | --- | --- |
-| Aniversariantes de hoje | Prévia da arte, template escolhido e situação (aguardando, enviado ou falhou) |
-| Próximos 7 dias | Nome, data e dias restantes |
-| Aniversariantes do mês | Quantidade e lista em ordem de dia |
-| Membros | Total de ativos e inativos |
-| Membros por template | Distribuição prevista entre masculino, feminino e infantil |
-| Saúde do sistema | WhatsApp conectado, grupo configurado e próximo envio |
-| Últimos envios | Os cinco mais recentes, com as falhas em destaque |
+| Destaque | Aniversariante do dia com a arte, a linha do tempo do envio (gerada, enviada, falhou ou aguardando) e as ações "Ver arte" e "Reenviar". Sem aniversário hoje, mostra o próximo |
+| Próximo envio | Horário, dia, grupo de destino e se o envio automático está ativo |
+| Aviso | WhatsApp desconectado ou grupo não configurado, com o atalho para resolver |
+| Próximos 14 dias | Calendário com as iniciais dos aniversariantes de cada dia |
+| Neste mês | Quantidade e lista em ordem de dia, com "hoje" e dias restantes |
+| Membros | Ativos e inativos, e a distribuição prevista por template |
+| Atividade recente | Os cinco envios mais recentes, descritos por `disparo/apresentacao.js` |
+
+O indicador do WhatsApp no topo aparece em todas as páginas (estado em `res.locals.whatsapp`).
 
 ---
 
