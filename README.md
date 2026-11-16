@@ -82,6 +82,10 @@ Para mudar o banco, crie o próximo arquivo em `src/compartilhado/banco/migracoe
 
 ## Deploy na VM e2-micro (Google Cloud, camada gratuita)
 
+> O passo a passo completo da infraestrutura (projeto, firewall, IP fixo, conta de serviço, bucket de
+> backup, VM, domínio, monitoramento e endurecimento do SSH) está em
+> [`docs/implantacao.md`](docs/implantacao.md). O resumo abaixo serve de referência rápida.
+
 1. Crie uma VM **e2-micro** em `us-west1`, `us-central1` ou `us-east1` (regiões gratuitas), com Debian 12
    e disco padrão de 30 GB. Libere as portas 80 e 443 no firewall ("Permitir tráfego HTTP/HTTPS").
 2. Aponte um domínio para o IP externo da VM (um subdomínio gratuito do DuckDNS funciona).

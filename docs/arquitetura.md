@@ -10,7 +10,8 @@
 
 > Este documento descreve a arquitetura do sistema: o problema que ele resolve, as decisões
 > tomadas, a organização do código, o modelo de dados, os fluxos principais e a operação em
-> produção. As instruções de instalação e uso ficam no [`README.md`](../README.md).
+> produção. A implantação passo a passo está em [`implantacao.md`](implantacao.md), e o uso no
+> dia a dia, no [`README.md`](../README.md).
 
 ## Sumário
 
