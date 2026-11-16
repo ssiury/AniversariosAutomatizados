@@ -2,6 +2,7 @@
 // Ao fim de cada ciclo o sistema avisa se está saudável. Se o aviso não chegar no prazo, ou chegar
 // como falha, o serviço externo alerta o responsável por e-mail, Telegram etc.
 import { config } from '../../config.js';
+import { logger } from '../../lib/logger.js';
 
 // Situações em que o envio do dia está comprometido e alguém precisa agir.
 const MOTIVOS_DE_FALHA = new Set(['WhatsApp desconectado', 'Grupo do WhatsApp não configurado']);
@@ -18,18 +19,23 @@ export function avaliarCiclo(resultado, whatsapp = null) {
 }
 
 function resumo(r) {
-  return r.executado
-    ? `${r.enviados} enviado(s), ${r.falhas} falha(s), ${r.pulados} pulado(s)`
-    : r.motivo;
+  return r.executado ? `${r.enviados} enviado(s), ${r.falhas} falha(s), ${r.pulados} pulado(s)` : r.motivo;
 }
 
-/** Envia o sinal de vida ao monitor. Nunca lança: o monitor não pode derrubar o envio. */
+/**
+ * Envia o sinal de vida ao monitor. Nunca lança: o monitor não pode derrubar o envio.
+ * @param {object} resultado resultado de `executarCiclo`
+ * @param {object} [opcoes]
+ * @param {{ conectado: boolean, desativado?: boolean } | null} [opcoes.whatsapp] estado atual do WhatsApp
+ * @param {string} [opcoes.url] URL de ping (padrão: MONITOR_URL)
+ * @param {(url: string, init?: RequestInit) => Promise<unknown>} [opcoes.enviar] substituível nos testes
+ */
 export async function reportarCiclo(resultado, { whatsapp = null, url = config.monitorUrl, enviar = fetch } = {}) {
   if (!url) return;
   const destino = avaliarCiclo(resultado, whatsapp) === 'falha' ? `${url.replace(/\/+$/, '')}/fail` : url;
   try {
     await enviar(destino, { method: 'POST', body: resumo(resultado), signal: AbortSignal.timeout(10_000) });
   } catch (e) {
-    console.error('[monitor] não foi possível avisar o monitor:', e.message);
+    logger.warn({ modulo: 'monitor', err: e }, 'Não foi possível avisar o monitor');
   }
 }

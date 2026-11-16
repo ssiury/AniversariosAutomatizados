@@ -1,11 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from '../../config.js';
+import { logger } from '../../lib/logger.js';
 import { hojeISO, horaMinuto, ehAniversario, proximoAniversario } from '../../lib/datas.js';
 import { membros, envios, configuracao } from '../dados/index.js';
 import { criarResolvedor, montarLegenda } from '../templates/index.js';
 import { gerarArte } from '../arte/index.js';
 import * as whatsapp from '../whatsapp/index.js';
+
+const log = logger.child({ modulo: 'disparo' });
 
 // Canal de envio substituível (testes usam um canal falso).
 let canal = whatsapp;
@@ -53,20 +56,36 @@ export async function enviarParaMembro(membro, dataAniversario, { status = 'envi
   try {
     if (!cfg.grupo_whatsapp) throw new Error('Grupo do WhatsApp não configurado');
     const imagem = await gerarArte({ membro, template, dataAniversario, nomeMinisterio: cfg.nome_ministerio });
-    arquivo = await salvarArte(imagem, membro.id, dataAniversario, status === 'teste' ? `teste${Date.now()}` : `t${tentativa}`);
+    arquivo = await salvarArte(
+      imagem,
+      membro.id,
+      dataAniversario,
+      status === 'teste' ? `teste${Date.now()}` : `t${tentativa}`,
+    );
     const legenda = montarLegenda(template.legenda, { membro, dataAniversario, nomeMinisterio: cfg.nome_ministerio });
     const idMensagem = await canal.enviarImagem(cfg.grupo_whatsapp, imagem, legenda);
     envios.registrar({
-      membro_id: membro.id, template_id: template.id, data_aniversario: dataAniversario,
-      status, tentativa, detalhe: idMensagem ? `Mensagem ${idMensagem}` : 'Enviado', arquivo_arte: arquivo,
+      membro_id: membro.id,
+      template_id: template.id,
+      data_aniversario: dataAniversario,
+      status,
+      tentativa,
+      detalhe: idMensagem ? `Mensagem ${idMensagem}` : 'Enviado',
+      arquivo_arte: arquivo,
     });
+    log.info({ membro: membro.id, template: template.tipo, status, tentativa }, 'Arte enviada');
     return { ok: true, template, arquivo };
   } catch (erro) {
     envios.registrar({
-      membro_id: membro.id, template_id: template?.id ?? null, data_aniversario: dataAniversario,
-      status: status === 'teste' ? 'teste' : 'falhou', tentativa,
-      detalhe: `${status === 'teste' ? 'Falhou: ' : ''}${erro.message}`, arquivo_arte: arquivo,
+      membro_id: membro.id,
+      template_id: template?.id ?? null,
+      data_aniversario: dataAniversario,
+      status: status === 'teste' ? 'teste' : 'falhou',
+      tentativa,
+      detalhe: `${status === 'teste' ? 'Falhou: ' : ''}${erro.message}`,
+      arquivo_arte: arquivo,
     });
+    log.warn({ membro: membro.id, status, tentativa, err: erro }, 'Falha no envio da arte');
     return { ok: false, erro: erro.message, template };
   }
 }
@@ -93,14 +112,21 @@ export async function executarCiclo({ agora = new Date(), ignorarHorario = false
     resultado.executado = true;
     let tentouEnviar = false;
     for (const membro of membros.aniversariantesDoDia(hoje)) {
-      if (envios.jaEnviado(membro.id, hoje)) { resultado.pulados += 1; continue; }
+      if (envios.jaEnviado(membro.id, hoje)) {
+        resultado.pulados += 1;
+        continue;
+      }
       const falhas = envios.contarFalhas(membro.id, hoje);
-      if (falhas >= config.maxTentativas) { resultado.pulados += 1; continue; }
+      if (falhas >= config.maxTentativas) {
+        resultado.pulados += 1;
+        continue;
+      }
       if (tentouEnviar) await pausar();
       tentouEnviar = true;
       // Uma falha não trava o ciclo: registra e segue para o próximo.
       const r = await enviarParaMembro(membro, hoje, { status: 'enviado', tentativa: falhas + 1 });
-      if (r.ok) resultado.enviados += 1; else resultado.falhas += 1;
+      if (r.ok) resultado.enviados += 1;
+      else resultado.falhas += 1;
     }
     resultado.motivo = 'Ciclo concluído';
     return resultado;

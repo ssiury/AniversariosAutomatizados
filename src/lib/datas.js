@@ -1,8 +1,18 @@
 // Datas são tratadas como strings ISO 'AAAA-MM-DD' no fuso local do processo (TZ).
 
 const MESES = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
 ];
 
 export const pad = (n) => String(n).padStart(2, '0');
@@ -38,7 +48,8 @@ export function diasEntre(deISO, ateISO) {
 
 /** Data em que o aniversário é comemorado no ano dado (29/02 vira 28/02 em ano não bissexto). */
 export function aniversarioNoAno(nascimento, ano) {
-  let { m, d } = partes(nascimento);
+  const { m } = partes(nascimento);
+  let { d } = partes(nascimento);
   if (m === 2 && d === 29 && !ehBissexto(ano)) d = 28;
   return `${ano}-${pad(m)}-${pad(d)}`;
 }
@@ -67,8 +78,7 @@ export function dataValida(iso, hoje = hojeISO()) {
   if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
   const { a, m, d } = partes(iso);
   const dt = new Date(Date.UTC(a, m - 1, d));
-  return dt.getUTCFullYear() === a && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d
-    && a >= 1900 && iso <= hoje;
+  return dt.getUTCFullYear() === a && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d && a >= 1900 && iso <= hoje;
 }
 
 export function formatarBR(iso) {

@@ -11,7 +11,8 @@ const rotas = Router();
 
 function carregar(req, res, next) {
   const membro = Number.isInteger(Number(req.params.id)) ? repo.obter(Number(req.params.id)) : null;
-  if (!membro) return render(res, 'erro', { titulo: 'Membro não encontrado', mensagem: 'Esse membro não existe.' }, 404);
+  if (!membro)
+    return render(res, 'erro', { titulo: 'Membro não encontrado', mensagem: 'Esse membro não existe.' }, 404);
   req.membro = membro;
   next();
 }
@@ -29,7 +30,10 @@ rotas.get('/', (req, res) => {
 
 rotas.get('/novo', (_req, res) => {
   render(res, 'membros-form', {
-    membro: { ativo: 1 }, erros: {}, templates: repoTemplates.listar(), novo: true,
+    membro: { ativo: 1 },
+    erros: {},
+    templates: repoTemplates.listar(),
+    novo: true,
   });
 });
 
@@ -60,25 +64,45 @@ rotas.post('/', upload.single('foto'), async (req, res) => {
 
 rotas.get('/:id', carregar, (req, res) => {
   render(res, 'membros-form', {
-    membro: detalhar(req.membro), erros: {}, templates: repoTemplates.listar(), novo: false,
-    ok: req.query.ok, aviso: req.query.aviso,
+    membro: detalhar(req.membro),
+    erros: {},
+    templates: repoTemplates.listar(),
+    novo: false,
+    ok: req.query.ok,
+    aviso: req.query.aviso,
   });
 });
 
 rotas.post('/:id', carregar, upload.single('foto'), async (req, res) => {
   const { dados, erros } = validar(req.body);
   if (Object.keys(erros).length) {
-    return render(res, 'membros-form', {
-      membro: { ...req.membro, ...dados }, erros, templates: repoTemplates.listar(), novo: false,
-    }, 422);
+    return render(
+      res,
+      'membros-form',
+      {
+        membro: { ...req.membro, ...dados },
+        erros,
+        templates: repoTemplates.listar(),
+        novo: false,
+      },
+      422,
+    );
   }
   try {
     dados.foto = await salvarFoto(req, req.membro.id, req.membro.foto);
   } catch {
     erros.foto = 'Não foi possível ler a imagem enviada.';
-    return render(res, 'membros-form', {
-      membro: { ...req.membro, ...dados }, erros, templates: repoTemplates.listar(), novo: false,
-    }, 422);
+    return render(
+      res,
+      'membros-form',
+      {
+        membro: { ...req.membro, ...dados },
+        erros,
+        templates: repoTemplates.listar(),
+        novo: false,
+      },
+      422,
+    );
   }
   repo.atualizar(req.membro.id, dados);
   res.redirect(`/membros/${req.membro.id}?ok=salvo`);
@@ -94,7 +118,9 @@ rotas.get('/:id/previa.jpg', carregar, async (req, res, next) => {
   try {
     const m = detalhar(req.membro, hojeISO());
     let img = await gerarArte({
-      membro: req.membro, template: m.template, dataAniversario: m.proximo_aniversario,
+      membro: req.membro,
+      template: m.template,
+      dataAniversario: m.proximo_aniversario,
       nomeMinisterio: configuracao.obter('nome_ministerio'),
     });
     const w = Number(req.query.w);

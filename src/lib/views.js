@@ -14,7 +14,10 @@ export const helpers = {
 };
 
 export function render(res, view, dados = {}, status = 200) {
-  res.status(status).type('html').send(eta.render(view, { ...res.locals, h: helpers, ...dados }));
+  res
+    .status(status)
+    .type('html')
+    .send(eta.render(view, { ...res.locals, h: helpers, ...dados }));
 }
 
 export function ehHtmx(req) {

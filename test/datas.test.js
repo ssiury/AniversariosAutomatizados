@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  idadeEm, aniversarioNoAno, proximoAniversario, ehAniversario, dataValida, diasEntre, somarDias, formatarDiaMes,
+  idadeEm,
+  aniversarioNoAno,
+  proximoAniversario,
+  ehAniversario,
+  dataValida,
+  diasEntre,
+  somarDias,
+  formatarDiaMes,
 } from '../src/lib/datas.js';
 
 test('idade em anos completos', () => {

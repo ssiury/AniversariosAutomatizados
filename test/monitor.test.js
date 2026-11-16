@@ -13,19 +13,29 @@ test('ciclo sem falhas é saudável', () => {
 test('falha de envio, WhatsApp fora ou grupo ausente geram alerta', () => {
   assert.equal(avaliarCiclo({ ...cicloOk, falhas: 1 }), 'falha');
   assert.equal(avaliarCiclo({ executado: false, motivo: 'Grupo do WhatsApp não configurado' }), 'falha');
-  assert.equal(avaliarCiclo({ executado: false, motivo: 'Aguardando o horário (08:00)' }, { conectado: false }), 'falha');
+  assert.equal(
+    avaliarCiclo({ executado: false, motivo: 'Aguardando o horário (08:00)' }, { conectado: false }),
+    'falha',
+  );
   assert.equal(avaliarCiclo(cicloOk, { conectado: false, desativado: true }), 'ok');
 });
 
 test('envia o ping para a URL certa e nunca lança', async () => {
   const chamadas = [];
-  const enviar = async (url) => { chamadas.push(url); };
+  const enviar = async (url) => {
+    chamadas.push(url);
+  };
   await reportarCiclo(cicloOk, { url: 'https://hc/abc', enviar });
   await reportarCiclo({ ...cicloOk, falhas: 2 }, { url: 'https://hc/abc/', enviar });
   await reportarCiclo(cicloOk, { url: '', enviar });
   assert.deepEqual(chamadas, ['https://hc/abc', 'https://hc/abc/fail']);
 
-  await assert.doesNotReject(reportarCiclo(cicloOk, {
-    url: 'https://hc/abc', enviar: async () => { throw new Error('rede fora'); },
-  }));
+  await assert.doesNotReject(
+    reportarCiclo(cicloOk, {
+      url: 'https://hc/abc',
+      enviar: async () => {
+        throw new Error('rede fora');
+      },
+    }),
+  );
 });

@@ -39,12 +39,21 @@ rotas.post('/:id', carregar, upload.single('fundo'), async (req, res) => {
   const dados = {
     nome: String(corpo.nome ?? '').trim() || t.nome,
     cor_destaque: /^#[0-9a-f]{6}$/i.test(cor) ? cor.toLowerCase() : t.cor_destaque,
-    mensagem_arte: String(corpo.mensagem_arte ?? '').split(/\r?\n/).slice(0, 2).join('\n').trim(),
-    legenda: String(corpo.legenda ?? '').replace(/\r\n/g, '\n').trim(),
+    mensagem_arte: String(corpo.mensagem_arte ?? '')
+      .split(/\r?\n/)
+      .slice(0, 2)
+      .join('\n')
+      .trim(),
+    legenda: String(corpo.legenda ?? '')
+      .replace(/\r\n/g, '\n')
+      .trim(),
   };
   try {
     if (req.file) {
-      dados.fundo = await salvarImagem(req.file.buffer, 'fundos', `${t.tipo}-${Date.now()}`, { largura: LARGURA, altura: ALTURA });
+      dados.fundo = await salvarImagem(req.file.buffer, 'fundos', `${t.tipo}-${Date.now()}`, {
+        largura: LARGURA,
+        altura: ALTURA,
+      });
       removerArquivo(t.fundo);
     } else if (corpo.remover_fundo === 'on') {
       removerArquivo(t.fundo);
@@ -61,7 +70,9 @@ rotas.get('/:id/previa.jpg', carregar, async (req, res, next) => {
   try {
     const hoje = hojeISO();
     let img = await gerarArte({
-      membro: membroExemplo(req.template.tipo, hoje), template: req.template, dataAniversario: hoje,
+      membro: membroExemplo(req.template.tipo, hoje),
+      template: req.template,
+      dataAniversario: hoje,
       nomeMinisterio: configuracao.obter('nome_ministerio'),
     });
     const w = Number(req.query.w);

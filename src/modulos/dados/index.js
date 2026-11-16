@@ -58,21 +58,24 @@ const TEMPLATES_PADRAO = [
     nome: 'Masculino',
     cor_destaque: '#1565c0',
     mensagem_arte: 'Que Deus abençoe\nseu novo ano de vida!',
-    legenda: '🎉 Hoje é aniversário do *{nome}*!\nParabéns pelos {idade} anos. Que Deus te abençoe grandemente!\n\n— {ministerio}',
+    legenda:
+      '🎉 Hoje é aniversário do *{nome}*!\nParabéns pelos {idade} anos. Que Deus te abençoe grandemente!\n\n— {ministerio}',
   },
   {
     tipo: 'feminino',
     nome: 'Feminino',
     cor_destaque: '#c2185b',
     mensagem_arte: 'Que Deus abençoe\nseu novo ano de vida!',
-    legenda: '🎉 Hoje é aniversário da *{nome}*!\nParabéns pelos {idade} anos. Que Deus te abençoe grandemente!\n\n— {ministerio}',
+    legenda:
+      '🎉 Hoje é aniversário da *{nome}*!\nParabéns pelos {idade} anos. Que Deus te abençoe grandemente!\n\n— {ministerio}',
   },
   {
     tipo: 'infantil',
     nome: 'Infantil',
     cor_destaque: '#ef6c00',
     mensagem_arte: 'Hoje é dia de festa!\nDeus te ama muito!',
-    legenda: '🎈 Hoje é dia de festa! *{nome}* está fazendo {idade} aninhos!\nQue Jesus encha sua vida de alegria!\n\n— {ministerio}',
+    legenda:
+      '🎈 Hoje é dia de festa! *{nome}* está fazendo {idade} aninhos!\nQue Jesus encha sua vida de alegria!\n\n— {ministerio}',
   },
 ];
 

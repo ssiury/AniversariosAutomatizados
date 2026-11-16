@@ -29,7 +29,9 @@ const AGORA = new Date(2026, 10, 12, 9, 0); // 12/11/2026 09:00 local
 before(() => {
   dados.abrir(':memory:');
   disparo.usarCanal(canalFalso);
-  disparo.usarPausa(async () => { pausas += 1; });
+  disparo.usarPausa(async () => {
+    pausas += 1;
+  });
   dados.configuracao.definir({ grupo_whatsapp: '123@g.us', horario_envio: '08:00', envio_ativo: '1' });
 });
 after(() => {
@@ -73,8 +75,11 @@ test('desiste depois de 3 falhas no dia', async () => {
   dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   falhar = true;
   for (let i = 0; i < 4; i++) await disparo.executarCiclo({ agora: AGORA });
-  const linhas = dados.getDb().prepare("SELECT status, tentativa FROM envio ORDER BY id").all();
-  assert.deepEqual(linhas.map((l) => l.tentativa), [1, 2, 3]);
+  const linhas = dados.getDb().prepare('SELECT status, tentativa FROM envio ORDER BY id').all();
+  assert.deepEqual(
+    linhas.map((l) => l.tentativa),
+    [1, 2, 3],
+  );
   assert.ok(linhas.every((l) => l.status === 'falhou'));
 });
 
@@ -102,7 +107,9 @@ test('arte tem 1080×1350 mesmo sem foto e sem fundo', async () => {
   const [template] = dados.templates.listar();
   const img = await gerarArte({
     membro: { nome: 'Maria Teste', data_nascimento: '1990-11-12', sexo: 'F', foto: null },
-    template, dataAniversario: '2026-11-12', nomeMinisterio: 'Mídia',
+    template,
+    dataAniversario: '2026-11-12',
+    nomeMinisterio: 'Mídia',
   });
   const meta = await sharp(img).metadata();
   assert.equal(meta.width, 1080);
@@ -129,8 +136,14 @@ test('"Enviar agora" fora do dia é registrado como teste', async () => {
 test('"Enviar agora" e o ciclo nunca enviam ao mesmo tempo', async () => {
   dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   const id = dados.membros.criar({ nome: 'Bia', data_nascimento: '1990-11-12', sexo: 'F', ativo: 1 });
+  /** @type {((valor?: unknown) => void) | undefined} */
   let liberar;
-  disparo.usarPausa(() => new Promise((r) => { liberar = r; }));
+  disparo.usarPausa(
+    () =>
+      new Promise((r) => {
+        liberar = r;
+      }),
+  );
   const ciclo = disparo.executarCiclo({ agora: AGORA }); // fica parado na pausa entre os dois envios
   await new Promise((r) => setImmediate(r));
   while (!liberar) await new Promise((r) => setTimeout(r, 10));
@@ -143,5 +156,7 @@ test('"Enviar agora" e o ciclo nunca enviam ao mesmo tempo', async () => {
   liberar();
   assert.equal((await ciclo).enviados, 2);
   assert.equal(enviados.length, 2);
-  disparo.usarPausa(async () => { pausas += 1; });
+  disparo.usarPausa(async () => {
+    pausas += 1;
+  });
 });

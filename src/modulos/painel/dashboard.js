@@ -8,13 +8,16 @@ export function montarDashboard(agora = new Date()) {
   const cfg = configuracao.todas();
   const ativos = listarDetalhado({ situacao: 'ativo' }, hoje);
 
-  const deHoje = ativos.filter((m) => m.dias_ate === 0).map((m) => ({
-    ...m, situacao: envios.situacaoDoDia(m.id, hoje),
-  }));
-  const proximos7 = ativos.filter((m) => m.dias_ate >= 1 && m.dias_ate <= 7)
-    .sort((a, b) => a.dias_ate - b.dias_ate);
+  const deHoje = ativos
+    .filter((m) => m.dias_ate === 0)
+    .map((m) => ({
+      ...m,
+      situacao: envios.situacaoDoDia(m.id, hoje),
+    }));
+  const proximos7 = ativos.filter((m) => m.dias_ate >= 1 && m.dias_ate <= 7).sort((a, b) => a.dias_ate - b.dias_ate);
   const mesAtual = partes(hoje).m;
-  const doMes = ativos.filter((m) => partes(m.data_nascimento).m === mesAtual)
+  const doMes = ativos
+    .filter((m) => partes(m.data_nascimento).m === mesAtual)
     .sort((a, b) => partes(a.data_nascimento).d - partes(b.data_nascimento).d);
 
   const porTemplate = { masculino: 0, feminino: 0, infantil: 0 };
@@ -24,7 +27,8 @@ export function montarDashboard(agora = new Date()) {
   let proximoEnvio;
   if (cfg.envio_ativo !== '1') proximoEnvio = 'Envio automático desativado';
   else if (horaMinuto(agora) < cfg.horario_envio) proximoEnvio = `Hoje às ${cfg.horario_envio}`;
-  else proximoEnvio = `Amanhã (${somarDias(hoje, 1).split('-').reverse().slice(0, 2).join('/')}) às ${cfg.horario_envio}`;
+  else
+    proximoEnvio = `Amanhã (${somarDias(hoje, 1).split('-').reverse().slice(0, 2).join('/')}) às ${cfg.horario_envio}`;
 
   return {
     hoje,
@@ -36,7 +40,7 @@ export function montarDashboard(agora = new Date()) {
     porTemplate,
     saude: {
       whatsapp: wa,
-      grupo: cfg.grupo_whatsapp ? (cfg.grupo_whatsapp_nome || cfg.grupo_whatsapp) : null,
+      grupo: cfg.grupo_whatsapp ? cfg.grupo_whatsapp_nome || cfg.grupo_whatsapp : null,
       proximoEnvio,
       envioAtivo: cfg.envio_ativo === '1',
     },

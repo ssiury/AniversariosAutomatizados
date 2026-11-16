@@ -3,6 +3,7 @@ import { envios, configuracao } from '../dados/index.js';
 import * as whatsapp from '../whatsapp/index.js';
 import { executarCiclo } from '../disparo/index.js';
 import { render } from '../../lib/views.js';
+import { logger } from '../../lib/logger.js';
 import { montarDashboard } from './dashboard.js';
 
 const rotas = Router();
@@ -13,7 +14,7 @@ rotas.get('/', (_req, res) => {
 
 rotas.get('/historico', (req, res) => {
   const status = String(req.query.status ?? '');
-  const pagina = Math.max(1, Number.parseInt(req.query.pagina, 10) || 1);
+  const pagina = Math.max(1, Number.parseInt(String(req.query.pagina ?? ''), 10) || 1);
   render(res, 'historico', { ...envios.listar({ status, pagina }), status, pagina });
 });
 
@@ -55,8 +56,9 @@ rotas.post('/configuracoes', async (req, res) => {
     const dados = await dadosConfiguracoes();
     const grupo = String(b.grupo_whatsapp);
     valores.grupo_whatsapp = grupo;
-    valores.grupo_whatsapp_nome = dados.grupos.find((g) => g.id === grupo)?.nome
-      ?? (grupo === dados.cfg.grupo_whatsapp ? dados.cfg.grupo_whatsapp_nome : grupo);
+    valores.grupo_whatsapp_nome =
+      dados.grupos.find((g) => g.id === grupo)?.nome ??
+      (grupo === dados.cfg.grupo_whatsapp ? dados.cfg.grupo_whatsapp_nome : grupo);
   }
   if (Object.keys(erros).length) {
     const dados = await dadosConfiguracoes();
@@ -77,7 +79,7 @@ rotas.post('/configuracoes/whatsapp/desconectar', async (_req, res) => {
   try {
     await whatsapp.desconectar();
   } catch (e) {
-    console.error('[whatsapp] erro ao desconectar:', e);
+    logger.error({ err: e, modulo: 'painel' }, 'Erro ao desconectar o WhatsApp');
   }
   res.redirect('/configuracoes');
 });

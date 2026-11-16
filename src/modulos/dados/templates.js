@@ -14,6 +14,10 @@ export function obter(id) {
 export function atualizar(id, dados) {
   const campos = CAMPOS.filter((c) => c in dados);
   if (!campos.length) return;
-  getDb().prepare(`UPDATE template SET ${campos.map((c) => `${c} = @${c}`).join(', ')},
-    atualizado_em = datetime('now', 'localtime') WHERE id = @id`).run({ ...dados, id });
+  getDb()
+    .prepare(
+      `UPDATE template SET ${campos.map((c) => `${c} = @${c}`).join(', ')},
+    atualizado_em = datetime('now', 'localtime') WHERE id = @id`,
+    )
+    .run({ ...dados, id });
 }

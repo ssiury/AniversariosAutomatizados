@@ -1,7 +1,10 @@
 import { config } from '../../config.js';
+import { logger } from '../../lib/logger.js';
 import { executarCiclo } from '../disparo/index.js';
 import { eventos as eventosWhatsapp, status as statusWhatsapp } from '../whatsapp/index.js';
 import { reportarCiclo } from '../monitor/index.js';
+
+const log = logger.child({ modulo: 'agendador' });
 
 let timer = null;
 let proximo = null;
@@ -10,11 +13,14 @@ async function rodar() {
   try {
     const r = await executarCiclo();
     if (r.executado && (r.enviados || r.falhas)) {
-      console.log(`[agendador] ${r.enviados} enviado(s), ${r.falhas} falha(s), ${r.pulados} pulado(s)`);
+      const { enviados, falhas, pulados } = r;
+      log[falhas ? 'warn' : 'info']({ enviados, falhas, pulados }, 'Ciclo concluído');
+    } else {
+      log.debug({ motivo: r.motivo }, 'Ciclo sem envios');
     }
     await reportarCiclo(r, { whatsapp: statusWhatsapp() });
   } catch (e) {
-    console.error('[agendador] erro no ciclo:', e);
+    log.error({ err: e }, 'Erro no ciclo');
   }
 }
 

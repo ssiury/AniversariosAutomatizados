@@ -5,14 +5,17 @@ import { hojeISO, idadeEm, proximoAniversario, dataValida, diasEntre } from '../
 /** Valida o formulário e devolve { dados, erros }. */
 export function validar(corpo = {}) {
   const erros = {};
-  const nome = String(corpo.nome ?? '').trim().replace(/\s+/g, ' ');
+  const nome = String(corpo.nome ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
   const dataNascimento = String(corpo.data_nascimento ?? '').trim();
   const sexo = String(corpo.sexo ?? '');
   const templateFixo = String(corpo.template_fixo_id ?? '');
 
   if (!nome) erros.nome = 'Informe o nome.';
   else if (nome.length > 120) erros.nome = 'Nome muito longo.';
-  if (!dataValida(dataNascimento)) erros.data_nascimento = 'Informe a data completa (dia, mês e ano), que não pode estar no futuro.';
+  if (!dataValida(dataNascimento))
+    erros.data_nascimento = 'Informe a data completa (dia, mês e ano), que não pode estar no futuro.';
   if (sexo !== 'M' && sexo !== 'F') erros.sexo = 'Escolha o sexo.';
 
   let templateFixoId = null;

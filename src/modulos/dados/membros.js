@@ -17,7 +17,7 @@ export function listar({ busca = '', sexo = '', situacao = '', mes = '' } = {}) 
   if (situacao === 'ativo') where.push('ativo = 1');
   if (situacao === 'inativo') where.push('ativo = 0');
   if (/^\d{1,2}$/.test(String(mes)) && Number(mes) >= 1 && Number(mes) <= 12) {
-    where.push("substr(data_nascimento, 6, 2) = @mes");
+    where.push('substr(data_nascimento, 6, 2) = @mes');
     params.mes = String(mes).padStart(2, '0');
   }
   const sql = `SELECT * FROM membro ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
@@ -35,16 +35,24 @@ export function obter(id) {
 
 export function criar(dados) {
   const linha = Object.fromEntries(CAMPOS.map((c) => [c, dados[c] ?? null]));
-  const r = getDb().prepare(`INSERT INTO membro (${CAMPOS.join(', ')})
-    VALUES (${CAMPOS.map((c) => `@${c}`).join(', ')})`).run(linha);
+  const r = getDb()
+    .prepare(
+      `INSERT INTO membro (${CAMPOS.join(', ')})
+    VALUES (${CAMPOS.map((c) => `@${c}`).join(', ')})`,
+    )
+    .run(linha);
   return Number(r.lastInsertRowid);
 }
 
 export function atualizar(id, dados) {
   const campos = CAMPOS.filter((c) => c in dados);
   if (!campos.length) return;
-  getDb().prepare(`UPDATE membro SET ${campos.map((c) => `${c} = @${c}`).join(', ')},
-    atualizado_em = datetime('now', 'localtime') WHERE id = @id`).run({ ...dados, id });
+  getDb()
+    .prepare(
+      `UPDATE membro SET ${campos.map((c) => `${c} = @${c}`).join(', ')},
+    atualizado_em = datetime('now', 'localtime') WHERE id = @id`,
+    )
+    .run({ ...dados, id });
 }
 
 export function remover(id) {
@@ -52,10 +60,14 @@ export function remover(id) {
 }
 
 export function contar() {
-  return getDb().prepare(`SELECT
+  return getDb()
+    .prepare(
+      `SELECT
       COALESCE(SUM(ativo = 1), 0) AS ativos,
       COALESCE(SUM(ativo = 0), 0) AS inativos
-    FROM membro`).get();
+    FROM membro`,
+    )
+    .get();
 }
 
 /** Membros ativos que fazem aniversário na data (considera 29/02 em ano não bissexto). */

@@ -17,16 +17,16 @@ A arquitetura completa está em [`docs/arquitetura.md`](docs/arquitetura.md).
 
 ## Módulos (`src/modulos/`)
 
-| Módulo | Responsabilidade |
-| --- | --- |
-| `dados` | SQLite: migrações, valores padrão e repositórios (`membros`, `templates`, `envios`, `configuracao`) |
-| `membros` | Validação do cadastro, listagem com idade/template calculados e rotas `/membros` |
-| `templates` | Regra de escolha do template, montagem da legenda e rotas `/templates` |
-| `arte` | Gerador da imagem (fundo, foto circular ou iniciais, textos) |
-| `whatsapp` | Conexão Baileys. Expõe só `enviarImagem` e `listarGrupos` (+ `status`, `iniciar`, `desconectar`) |
-| `disparo` | Ciclo diário: decide quem recebe, gera, envia e registra cada tentativa |
-| `agendador` | Roda o ciclo a cada 15 min e logo após o WhatsApp conectar |
-| `painel` | Login, dashboard, histórico e configurações |
+| Módulo      | Responsabilidade                                                                                    |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| `dados`     | SQLite: migrações, valores padrão e repositórios (`membros`, `templates`, `envios`, `configuracao`) |
+| `membros`   | Validação do cadastro, listagem com idade/template calculados e rotas `/membros`                    |
+| `templates` | Regra de escolha do template, montagem da legenda e rotas `/templates`                              |
+| `arte`      | Gerador da imagem (fundo, foto circular ou iniciais, textos)                                        |
+| `whatsapp`  | Conexão Baileys. Expõe só `enviarImagem` e `listarGrupos` (+ `status`, `iniciar`, `desconectar`)    |
+| `disparo`   | Ciclo diário: decide quem recebe, gera, envia e registra cada tentativa                             |
+| `agendador` | Roda o ciclo a cada 15 min e logo após o WhatsApp conectar                                          |
+| `painel`    | Login, dashboard, histórico e configurações                                                         |
 
 ## Regras de negócio
 
