@@ -22,8 +22,12 @@ export function usarPausa(fn) {
   pausar = fn;
 }
 
-let emExecucao = false;
+// Trava única para o ciclo automático e o "Enviar agora": os dois nunca enviam ao mesmo tempo,
+// o que evita a mesma arte ser postada duas vezes no grupo.
+let ocupado = false;
 let ultimoCiclo = null;
+
+export const MOTIVO_OCUPADO = 'Já existe um envio em andamento';
 
 export function infoUltimoCiclo() {
   return ultimoCiclo;
@@ -73,8 +77,8 @@ export async function enviarParaMembro(membro, dataAniversario, { status = 'envi
  * e, para cada aniversariante: 4) já recebeu hoje? 5) já falhou 3 vezes hoje?
  */
 export async function executarCiclo({ agora = new Date(), ignorarHorario = false } = {}) {
-  if (emExecucao) return { executado: false, motivo: 'Ciclo anterior ainda em execução' };
-  emExecucao = true;
+  if (ocupado) return { executado: false, motivo: MOTIVO_OCUPADO, enviados: 0, falhas: 0, pulados: 0 };
+  ocupado = true;
   const resultado = { executado: false, motivo: '', enviados: 0, falhas: 0, pulados: 0, quando: agora.toISOString() };
   try {
     const cfg = configuracao.todas();
@@ -101,7 +105,7 @@ export async function executarCiclo({ agora = new Date(), ignorarHorario = false
     resultado.motivo = 'Ciclo concluído';
     return resultado;
   } finally {
-    emExecucao = false;
+    ocupado = false;
     ultimoCiclo = resultado;
   }
 }
@@ -110,12 +114,19 @@ export async function executarCiclo({ agora = new Date(), ignorarHorario = false
 export async function enviarAgora(membroId, agora = new Date()) {
   const membro = membros.obter(membroId);
   if (!membro) return { ok: false, erro: 'Membro não encontrado' };
-  const hoje = hojeISO(agora);
-  if (membro.ativo && ehAniversario(membro.data_nascimento, hoje) && !envios.jaEnviado(membro.id, hoje)) {
-    const falhas = envios.contarFalhas(membro.id, hoje);
-    if (falhas < config.maxTentativas) {
-      return enviarParaMembro(membro, hoje, { status: 'enviado', tentativa: falhas + 1 });
+  // Um ciclo pode levar minutos (pausas entre envios): em vez de prender a requisição, pede para tentar depois.
+  if (ocupado) return { ok: false, erro: `${MOTIVO_OCUPADO}. Tente novamente em alguns minutos.` };
+  ocupado = true;
+  try {
+    const hoje = hojeISO(agora);
+    if (membro.ativo && ehAniversario(membro.data_nascimento, hoje) && !envios.jaEnviado(membro.id, hoje)) {
+      const falhas = envios.contarFalhas(membro.id, hoje);
+      if (falhas < config.maxTentativas) {
+        return await enviarParaMembro(membro, hoje, { status: 'enviado', tentativa: falhas + 1 });
+      }
     }
+    return await enviarParaMembro(membro, proximoAniversario(membro.data_nascimento, hoje), { status: 'teste' });
+  } finally {
+    ocupado = false;
   }
-  return enviarParaMembro(membro, proximoAniversario(membro.data_nascimento, hoje), { status: 'teste' });
 }

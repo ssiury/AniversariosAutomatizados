@@ -3,6 +3,7 @@ import express from 'express';
 import cookieSession from 'cookie-session';
 import { config } from './config.js';
 import { render } from './lib/views.js';
+import { getDb } from './modulos/dados/index.js';
 import { rotasAuth, exigirLogin, rotasPainel } from './modulos/painel/index.js';
 import { rotasMembros } from './modulos/membros/index.js';
 import { rotasTemplates } from './modulos/templates/index.js';
@@ -23,7 +24,16 @@ export function criarApp() {
   app.get('/static/htmx.min.js', (_req, res) => {
     res.sendFile(path.join(config.raiz, 'node_modules/htmx.org/dist/htmx.min.js'));
   });
-  app.get('/saude', (_req, res) => res.json({ ok: true }));
+  // Healthcheck do Docker: confirma que o banco responde. O WhatsApp fica de fora de propósito,
+  // porque reiniciar o contêiner não resolve uma sessão desconectada (isso é papel do monitor).
+  app.get('/saude', (_req, res) => {
+    try {
+      getDb().prepare('SELECT 1').get();
+      res.json({ ok: true });
+    } catch {
+      res.status(503).json({ ok: false });
+    }
+  });
 
   app.use(express.urlencoded({ extended: false, limit: '200kb' }));
   app.use(cookieSession({

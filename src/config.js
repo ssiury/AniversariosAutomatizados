@@ -14,6 +14,7 @@ export const config = {
   intervaloCicloMin: Number(process.env.INTERVALO_CICLO_MIN || 15),
   maxTentativas: 3,
   whatsappDesativado: process.env.WHATSAPP_DESATIVADO === '1',
+  monitorUrl: process.env.MONITOR_URL || '',
 };
 
 export function validarConfig() {

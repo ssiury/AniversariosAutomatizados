@@ -109,3 +109,39 @@ test('arte tem 1080×1350 mesmo sem foto e sem fundo', async () => {
   assert.equal(meta.height, 1350);
   assert.equal(meta.format, 'jpeg');
 });
+
+test('"Enviar agora" no dia do aniversário conta como o envio do dia', async () => {
+  const id = dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  const r = await disparo.enviarAgora(id, AGORA);
+  assert.equal(r.ok, true);
+  const ciclo = await disparo.executarCiclo({ agora: AGORA });
+  assert.equal(ciclo.pulados, 1, 'o ciclo não repete o envio');
+  assert.equal(enviados.length, 1);
+});
+
+test('"Enviar agora" fora do dia é registrado como teste', async () => {
+  const id = dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-03-01', sexo: 'F', ativo: 1 });
+  await disparo.enviarAgora(id, AGORA);
+  const linha = dados.getDb().prepare('SELECT status, data_aniversario FROM envio').get();
+  assert.deepEqual({ ...linha }, { status: 'teste', data_aniversario: '2027-03-01' });
+});
+
+test('"Enviar agora" e o ciclo nunca enviam ao mesmo tempo', async () => {
+  dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  const id = dados.membros.criar({ nome: 'Bia', data_nascimento: '1990-11-12', sexo: 'F', ativo: 1 });
+  let liberar;
+  disparo.usarPausa(() => new Promise((r) => { liberar = r; }));
+  const ciclo = disparo.executarCiclo({ agora: AGORA }); // fica parado na pausa entre os dois envios
+  await new Promise((r) => setImmediate(r));
+  while (!liberar) await new Promise((r) => setTimeout(r, 10));
+
+  const manual = await disparo.enviarAgora(id, AGORA);
+  assert.equal(manual.ok, false);
+  assert.match(manual.erro, /envio em andamento/);
+  assert.equal((await disparo.executarCiclo({ agora: AGORA })).motivo, disparo.MOTIVO_OCUPADO);
+
+  liberar();
+  assert.equal((await ciclo).enviados, 2);
+  assert.equal(enviados.length, 2);
+  disparo.usarPausa(async () => { pausas += 1; });
+});
