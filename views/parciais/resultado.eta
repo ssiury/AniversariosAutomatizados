@@ -1,1 +1,1 @@
-<p class="alerta <%= it.ok ? 'sucesso' : 'erro' %>"><%= it.mensagem %></p>
+<p class="alerta <%= it.ok ? 'sucesso' : 'erro' %>" role="status"><%~ it.h.icone(it.ok ? 'circle-check' : 'circle-alert') %><span><%= it.mensagem %></span></p>

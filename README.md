@@ -76,6 +76,7 @@ Acesse <http://localhost:3000> (em desenvolvimento, usuário `admin` e senha `ad
 | `npm run lint`           | ESLint, incluindo as regras de fronteira entre módulos     |
 | `npm run format`         | Formata o código com o Prettier                            |
 | `npm run typecheck`      | Checagem de tipos do JavaScript via JSDoc (`tsc --noEmit`) |
+| `npm run assets`         | Copia os ícones Lucide e a fonte Inter usados pelo painel  |
 
 Para mudar o banco, crie o próximo arquivo em `src/compartilhado/banco/migracoes/`
 (ex.: `003_descricao.sql`). Nunca altere uma migração já publicada.

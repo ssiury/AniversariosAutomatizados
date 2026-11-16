@@ -4,23 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= it.titulo ? it.titulo + ' · ' : '' %>Aniversários</title>
+  <meta name="color-scheme" content="light dark">
+  <script>
+    // Aplica o tema antes da primeira pintura, para não piscar. Preferência salva > tema do sistema.
+    (function () {
+      var tema;
+      try { tema = localStorage.getItem('tema'); } catch (e) {}
+      if (tema !== 'claro' && tema !== 'escuro') {
+        tema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
+      }
+      document.documentElement.dataset.tema = tema;
+    })();
+  </script>
+  <link rel="preload" href="/static/fontes/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/estilo.css">
   <script src="/static/htmx.min.js" defer></script>
 </head>
-<body>
+<% const botaoTema = `
+  <button type="button" class="item-acao" data-alternar-tema aria-label="Alternar tema claro e escuro">
+    <span class="so-claro">${it.h.icone('moon')}</span><span class="so-escuro">${it.h.icone('sun')}</span>
+    <span class="rotulo-acao"><span class="so-claro">Tema escuro</span><span class="so-escuro">Tema claro</span></span>
+  </button>`; %>
 <% if (it.usuario) { %>
-  <header class="topo">
-    <a class="marca" href="/">🎂 Aniversários</a>
-    <nav>
-      <% const links = [['/', 'Dashboard'], ['/membros', 'Membros'], ['/templates', 'Templates'], ['/historico', 'Histórico'], ['/configuracoes', 'Configurações']]; %>
-      <% for (const [href, rotulo] of links) { %>
-        <% const ativo = href === '/' ? it.caminho === '/' : (it.caminho || '').startsWith(href); %>
-        <a href="<%= href %>" class="<%= ativo ? 'ativo' : '' %>"><%= rotulo %></a>
-      <% } %>
-    </nav>
-    <form method="post" action="/logout"><button class="link">Sair</button></form>
-  </header>
+<body>
+  <div class="app">
+    <aside class="lateral">
+      <a class="marca" href="/">
+        <span class="marca-simbolo"><%~ it.h.icone('cake') %></span>
+        <span class="marca-texto"><strong>Aniversários</strong><span>Ministério de Mídia</span></span>
+      </a>
+
+      <nav class="navegacao" aria-label="Principal">
+        <span class="navegacao-rotulo">Menu</span>
+        <% const links = [
+          ['/', 'Dashboard', 'layout-dashboard'],
+          ['/membros', 'Membros', 'users'],
+          ['/templates', 'Templates', 'palette'],
+          ['/historico', 'Histórico', 'history'],
+          ['/configuracoes', 'Configurações', 'settings'],
+        ]; %>
+        <% for (const [href, rotulo, icone] of links) { %>
+          <% const ativo = href === '/' ? it.caminho === '/' : (it.caminho || '').startsWith(href); %>
+          <a href="<%= href %>" <%~ ativo ? 'aria-current="page"' : '' %>><%~ it.h.icone(icone) %><span><%= rotulo %></span></a>
+        <% } %>
+      </nav>
+
+      <div class="lateral-rodape">
+        <%~ botaoTema %>
+        <form method="post" action="/logout">
+          <button class="item-acao" aria-label="Sair"><%~ it.h.icone('log-out') %><span class="rotulo-acao">Sair</span></button>
+        </form>
+      </div>
+    </aside>
+
+    <main class="conteudo"><%~ it.body %></main>
+  </div>
+<% } else { %>
+<body>
+  <main class="tela-login">
+    <%~ botaoTema %>
+    <%~ it.body %>
+  </main>
 <% } %>
-  <main class="conteudo"><%~ it.body %></main>
+  <script>
+    document.addEventListener('click', function (evento) {
+      if (!evento.target.closest('[data-alternar-tema]')) return;
+      var raiz = document.documentElement;
+      var tema = raiz.dataset.tema === 'escuro' ? 'claro' : 'escuro';
+      raiz.dataset.tema = tema;
+      try { localStorage.setItem('tema', tema); } catch (e) {}
+    });
+  </script>
 </body>
 </html>

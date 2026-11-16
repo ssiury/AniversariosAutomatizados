@@ -1,6 +1,7 @@
 <% layout('./layout', { titulo: it.titulo }) %>
-<div class="cartao">
+<div class="cartao pagina-erro">
+  <span class="chip-icone"><%~ it.h.icone('circle-alert') %></span>
   <h1><%= it.titulo %></h1>
   <p><%= it.mensagem %></p>
-  <p><a href="/">Voltar ao início</a></p>
+  <a class="botao secundario" href="/"><%~ it.h.icone('arrow-left') %>Voltar ao início</a>
 </div>

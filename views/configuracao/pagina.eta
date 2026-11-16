@@ -1,49 +1,70 @@
 <% layout('../layout', { titulo: 'Configurações' }) %>
 <% const c = it.cfg; const e = it.erros || {}; %>
-<h1>Configurações</h1>
-<% if (it.ok) { %><p class="alerta sucesso">Configurações salvas.</p><% } %>
+<header class="cabecalho">
+  <div>
+    <h1>Configurações</h1>
+    <p>Conexão com o WhatsApp e regras do envio automático.</p>
+  </div>
+</header>
 
-<div class="colunas">
-  <section class="cartao">
-    <h2>WhatsApp</h2>
-    <%~ include('./whatsapp', { wa: it.wa }) %>
-  </section>
+<div class="pilha-secoes">
+  <% if (it.ok) { %><p class="alerta sucesso" role="status"><%~ it.h.icone('circle-check') %><span>Configurações salvas.</span></p><% } %>
 
-  <form class="cartao pilha" method="post" action="/configuracoes">
-    <h2>Envio</h2>
-    <label class="inline"><input type="checkbox" name="envio_ativo" <%= c.envio_ativo === '1' ? 'checked' : '' %>> Envio automático ativo</label>
-    <label>Grupo de destino
-      <% if (it.grupos.length) { %>
-        <select name="grupo_whatsapp">
-          <option value="">— escolha um grupo —</option>
-          <% for (const g of it.grupos) { %>
-            <option value="<%= g.id %>" <%= g.id === c.grupo_whatsapp ? 'selected' : '' %>><%= g.nome %></option>
+  <div class="colunas">
+    <section class="cartao">
+      <div class="cartao-cabecalho"><h2>WhatsApp</h2></div>
+      <div class="cartao-corpo">
+        <%~ include('./whatsapp', { wa: it.wa, h: it.h }) %>
+      </div>
+    </section>
+
+    <form class="cartao" method="post" action="/configuracoes">
+      <div class="cartao-cabecalho"><h2>Envio automático</h2></div>
+      <div class="cartao-corpo formulario">
+        <label class="interruptor">
+          <input type="checkbox" name="envio_ativo" <%= c.envio_ativo === '1' ? 'checked' : '' %>>
+          <span>Envio automático ativo<small>Desligue para pausar os envios sem perder as configurações.</small></span>
+        </label>
+        <label class="campo"><span>Grupo de destino</span>
+          <% if (it.grupos.length) { %>
+            <select name="grupo_whatsapp">
+              <option value="">Escolha um grupo</option>
+              <% for (const g of it.grupos) { %>
+                <option value="<%= g.id %>" <%= g.id === c.grupo_whatsapp ? 'selected' : '' %>><%= g.nome %></option>
+              <% } %>
+            </select>
+          <% } else { %>
+            <input value="<%= c.grupo_whatsapp_nome || c.grupo_whatsapp || 'Nenhum grupo escolhido' %>" disabled>
+            <small><%= it.erroGrupos ? 'Erro ao listar os grupos: ' + it.erroGrupos : 'Conecte o WhatsApp para escolher o grupo.' %></small>
           <% } %>
-        </select>
-      <% } else { %>
-        <input value="<%= c.grupo_whatsapp_nome || c.grupo_whatsapp || 'Nenhum' %>" disabled>
-        <small class="sutil"><%= it.erroGrupos ? 'Erro ao listar grupos: ' + it.erroGrupos : 'Conecte o WhatsApp para escolher o grupo.' %></small>
-      <% } %>
-    </label>
-    <label>Horário do envio
-      <input type="time" name="horario_envio" value="<%= c.horario_envio %>" required>
-      <% if (e.horario_envio) { %><small class="erro"><%= e.horario_envio %></small><% } %>
-    </label>
-    <label>Idade limite do template infantil (abaixo de)
-      <input type="number" name="idade_limite_infantil" min="1" max="18" value="<%= c.idade_limite_infantil %>" required>
-      <% if (e.idade_limite_infantil) { %><small class="erro"><%= e.idade_limite_infantil %></small><% } %>
-    </label>
-    <label>Nome do ministério
-      <input name="nome_ministerio" value="<%= c.nome_ministerio %>" required maxlength="80">
-      <% if (e.nome_ministerio) { %><small class="erro"><%= e.nome_ministerio %></small><% } %>
-    </label>
-    <button class="botao">Salvar</button>
-  </form>
-</div>
+        </label>
+        <div class="duas-colunas">
+          <label class="campo"><span>Horário do envio</span>
+            <input type="time" name="horario_envio" value="<%= c.horario_envio %>" required <%~ e.horario_envio ? 'aria-invalid="true"' : '' %>>
+            <% if (e.horario_envio) { %><small class="erro"><%= e.horario_envio %></small><% } %>
+          </label>
+          <label class="campo"><span>Arte infantil abaixo de</span>
+            <input type="number" name="idade_limite_infantil" min="1" max="18" value="<%= c.idade_limite_infantil %>" required <%~ e.idade_limite_infantil ? 'aria-invalid="true"' : '' %>>
+            <% if (e.idade_limite_infantil) { %><small class="erro"><%= e.idade_limite_infantil %></small><% } else { %><small>anos de idade</small><% } %>
+          </label>
+        </div>
+        <label class="campo"><span>Nome do ministério</span>
+          <input name="nome_ministerio" value="<%= c.nome_ministerio %>" required maxlength="80" <%~ e.nome_ministerio ? 'aria-invalid="true"' : '' %>>
+          <% if (e.nome_ministerio) { %><small class="erro"><%= e.nome_ministerio %></small><% } else { %><small>Aparece na arte e na variável {ministerio} da mensagem.</small><% } %>
+        </label>
+        <div class="acoes"><button class="botao">Salvar configurações</button></div>
+      </div>
+    </form>
+  </div>
 
-<section class="cartao">
-  <h2>Disparo manual</h2>
-  <p class="sutil">O sistema verifica os aniversariantes a cada 15 minutos depois do horário configurado. Use o botão para rodar um ciclo agora, ignorando o horário (quem já recebeu hoje não recebe de novo).</p>
-  <button class="botao" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this">Rodar ciclo agora</button>
-  <div id="resultado-ciclo"></div>
-</section>
+  <section class="cartao">
+    <div class="cartao-cabecalho"><h2>Disparo manual</h2></div>
+    <div class="cartao-corpo formulario">
+      <p class="sutil">O sistema confere os aniversariantes a cada 15 minutos depois do horário configurado. Rode um ciclo agora para enviar sem esperar o horário. Quem já recebeu hoje não recebe de novo.</p>
+      <div class="acoes">
+        <button class="botao secundario" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this"><%~ it.h.icone('play') %>Rodar ciclo agora</button>
+      </div>
+      <div id="resultado-ciclo" aria-live="polite"></div>
+    </div>
+  </section>
+</div>

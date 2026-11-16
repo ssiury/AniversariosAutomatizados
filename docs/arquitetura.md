@@ -145,6 +145,11 @@ Cada decisão segue o formato contexto → decisão → consequências.
   incremental, status do QR Code, botões de envio).
 - **Consequências:** sem SPA, sem bundler e sem etapa de build. O htmx é servido diretamente de
   `node_modules`.
+- **Interface:** um único `public/estilo.css` com tokens de design (cores em OKLCH, espaçamento,
+  raios e sombras) para os temas claro e escuro. O tema segue o sistema operacional e pode ser
+  trocado por um botão; a escolha fica no `localStorage` e é aplicada antes da primeira pintura.
+  Ícones [Lucide](https://lucide.dev) são desenhados inline pelo helper `icone()`, e a fonte Inter é
+  auto-hospedada. Só os ícones e fontes usados ficam no repositório (`npm run assets`), sem CDN.
 
 ### DA-04 — SQLite embarcado
 

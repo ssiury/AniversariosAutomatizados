@@ -1,11 +1,17 @@
 <% layout('../layout', { titulo: 'Entrar' }) %>
-<div class="login">
-  <h1>🎂 Aniversários</h1>
-  <p class="sutil">Ministério de Mídia</p>
-  <% if (it.erro) { %><p class="alerta erro"><%= it.erro %></p><% } %>
-  <form method="post" action="/login" class="pilha">
-    <label>Usuário <input name="usuario" autocomplete="username" required autofocus></label>
-    <label>Senha <input name="senha" type="password" autocomplete="current-password" required></label>
-    <button class="botao">Entrar</button>
+<div class="cartao login">
+  <div class="marca">
+    <span class="marca-simbolo"><%~ it.h.icone('cake') %></span>
+    <span class="marca-texto"><strong>Aniversários</strong><span>Ministério de Mídia</span></span>
+  </div>
+  <% if (it.erro) { %><p class="alerta erro" role="alert"><%~ it.h.icone('circle-alert') %><span><%= it.erro %></span></p><% } %>
+  <form method="post" action="/login" class="formulario">
+    <label class="campo"><span>Usuário</span>
+      <input name="usuario" autocomplete="username" required autofocus>
+    </label>
+    <label class="campo"><span>Senha</span>
+      <input name="senha" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="botao largo">Entrar</button>
   </form>
 </div>

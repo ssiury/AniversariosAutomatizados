@@ -1,16 +1,26 @@
-<div id="whatsapp" <% if (!it.wa.conectado && !it.wa.desativado) { %>hx-get="/configuracoes/whatsapp" hx-trigger="every 3s" hx-swap="outerHTML"<% } %>>
+<div id="whatsapp" class="formulario" <% if (!it.wa.conectado && !it.wa.desativado) { %>hx-get="/configuracoes/whatsapp" hx-trigger="every 3s" hx-swap="outerHTML"<% } %>>
   <% if (it.wa.desativado) { %>
-    <p class="alerta erro"><%= it.wa.erro %></p>
+    <p class="alerta info"><%~ it.h.icone('info') %><span><%= it.wa.erro %></span></p>
   <% } else if (it.wa.conectado) { %>
-    <p><span class="selo enviado">Conectado</span> <%= it.wa.numero ? '+' + it.wa.numero : '' %></p>
+    <div class="whatsapp-estado">
+      <span class="chip-icone conectado"><%~ it.h.icone('smartphone') %></span>
+      <div>
+        <span class="selo conectado">Conectado</span>
+        <p class="sutil numero"><%= it.wa.numero ? '+' + it.wa.numero : 'Número não identificado' %></p>
+      </div>
+    </div>
     <form method="post" action="/configuracoes/whatsapp/desconectar" onsubmit="return confirm('Desconectar o WhatsApp? Será preciso escanear um novo QR Code.')">
       <button class="botao perigo">Desconectar</button>
     </form>
   <% } else if (it.wa.qr) { %>
-    <p>Abra o WhatsApp no celular → <strong>Aparelhos conectados</strong> → <strong>Conectar um aparelho</strong> e escaneie:</p>
+    <ol class="passos">
+      <li>Abra o WhatsApp no celular que vai publicar.</li>
+      <li>Toque em <strong>Dispositivos conectados</strong> e em <strong>Conectar dispositivo</strong>.</li>
+      <li>Aponte a câmera para o código abaixo.</li>
+    </ol>
     <img class="qr" src="<%= it.wa.qr %>" alt="QR Code do WhatsApp">
   <% } else { %>
-    <p class="sutil">Conectando ao WhatsApp…</p>
+    <p class="carregando">Conectando ao WhatsApp…</p>
   <% } %>
-  <% if (it.wa.erro && !it.wa.desativado) { %><p class="alerta erro"><%= it.wa.erro %></p><% } %>
+  <% if (it.wa.erro && !it.wa.desativado) { %><p class="alerta erro" role="alert"><%~ it.h.icone('circle-alert') %><span><%= it.wa.erro %></span></p><% } %>
 </div>
