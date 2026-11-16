@@ -23,11 +23,13 @@ const canalFalso = {
   },
 };
 
+let pausas = 0;
 const AGORA = new Date(2026, 10, 12, 9, 0); // 12/11/2026 09:00 local
 
 before(() => {
   dados.abrir(':memory:');
   disparo.usarCanal(canalFalso);
+  disparo.usarPausa(async () => { pausas += 1; });
   dados.configuracao.definir({ grupo_whatsapp: '123@g.us', horario_envio: '08:00', envio_ativo: '1' });
 });
 after(() => {
@@ -37,6 +39,7 @@ after(() => {
 beforeEach(() => {
   enviados.length = 0;
   falhar = false;
+  pausas = 0;
   dados.getDb().exec('DELETE FROM envio; DELETE FROM membro;');
 });
 
@@ -49,6 +52,7 @@ test('envia uma vez por aniversariante e pula quem já recebeu', async () => {
   const r1 = await disparo.executarCiclo({ agora: AGORA });
   assert.equal(r1.enviados, 2);
   assert.equal(enviados.length, 2);
+  assert.equal(pausas, 1, 'pausa só entre os dois envios, não antes do primeiro');
   assert.match(enviados.find((e) => e.legenda.includes('Ana')).legenda, /30 anos/);
   assert.match(enviados.find((e) => e.legenda.includes('Lucas')).legenda, /8 aninhos/);
 

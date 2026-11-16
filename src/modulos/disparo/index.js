@@ -13,6 +13,15 @@ export function usarCanal(c) {
   canal = c;
 }
 
+// Pausa aleatória entre dois envios do mesmo ciclo, para não postar várias artes em sequência imediata.
+// Substituível nos testes.
+const PAUSA_MIN_MS = 20_000;
+const PAUSA_MAX_MS = 60_000;
+let pausar = () => new Promise((r) => setTimeout(r, PAUSA_MIN_MS + Math.random() * (PAUSA_MAX_MS - PAUSA_MIN_MS)));
+export function usarPausa(fn) {
+  pausar = fn;
+}
+
 let emExecucao = false;
 let ultimoCiclo = null;
 
@@ -78,10 +87,13 @@ export async function executarCiclo({ agora = new Date(), ignorarHorario = false
 
     const hoje = hojeISO(agora);
     resultado.executado = true;
+    let tentouEnviar = false;
     for (const membro of membros.aniversariantesDoDia(hoje)) {
       if (envios.jaEnviado(membro.id, hoje)) { resultado.pulados += 1; continue; }
       const falhas = envios.contarFalhas(membro.id, hoje);
       if (falhas >= config.maxTentativas) { resultado.pulados += 1; continue; }
+      if (tentouEnviar) await pausar();
+      tentouEnviar = true;
       // Uma falha não trava o ciclo: registra e segue para o próximo.
       const r = await enviarParaMembro(membro, hoje, { status: 'enviado', tentativa: falhas + 1 });
       if (r.ok) resultado.enviados += 1; else resultado.falhas += 1;
