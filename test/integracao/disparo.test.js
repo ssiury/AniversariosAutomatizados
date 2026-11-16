@@ -7,9 +7,15 @@ import path from 'node:path';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aniv-'));
 process.env.STORAGE_DIR = tmp;
 
-const dados = await import('../src/modulos/dados/index.js');
-const disparo = await import('../src/modulos/disparo/index.js');
-const { gerarArte } = await import('../src/modulos/arte/index.js');
+const banco = await import('#compartilhado/banco/index.js');
+/** Linha do banco nos testes (sem tipo). @type {(sql: string) => { get: (...a: any[]) => any, all: (...a: any[]) => any[] }} */
+const sql = (texto) => banco.getDb().prepare(texto);
+const membros = await import('#modulos/membros/repositorio.js');
+const templates = await import('#modulos/templates/repositorio.js');
+const envios = await import('#modulos/disparo/repositorio.js');
+const configuracao = await import('#modulos/configuracao/repositorio.js');
+const disparo = await import('#modulos/disparo/index.js');
+const { gerarArte } = await import('#modulos/arte/index.js');
 const sharp = (await import('sharp')).default;
 
 const enviados = [];
@@ -27,29 +33,29 @@ let pausas = 0;
 const AGORA = new Date(2026, 10, 12, 9, 0); // 12/11/2026 09:00 local
 
 before(() => {
-  dados.abrir(':memory:');
+  banco.abrir(':memory:');
   disparo.usarCanal(canalFalso);
   disparo.usarPausa(async () => {
     pausas += 1;
   });
-  dados.configuracao.definir({ grupo_whatsapp: '123@g.us', horario_envio: '08:00', envio_ativo: '1' });
+  configuracao.definir({ grupo_whatsapp: '123@g.us', horario_envio: '08:00', envio_ativo: '1' });
 });
 after(() => {
-  dados.fechar();
+  banco.fechar();
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 beforeEach(() => {
   enviados.length = 0;
   falhar = false;
   pausas = 0;
-  dados.getDb().exec('DELETE FROM envio; DELETE FROM membro;');
+  banco.getDb().exec('DELETE FROM envio; DELETE FROM membro;');
 });
 
 test('envia uma vez por aniversariante e pula quem já recebeu', async () => {
-  dados.membros.criar({ nome: 'Ana Souza', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
-  dados.membros.criar({ nome: 'Lucas', data_nascimento: '2018-11-12', sexo: 'M', ativo: 1 });
-  dados.membros.criar({ nome: 'Inativo', data_nascimento: '1990-11-12', sexo: 'M', ativo: 0 });
-  dados.membros.criar({ nome: 'Outro dia', data_nascimento: '1990-11-13', sexo: 'M', ativo: 1 });
+  membros.criar({ nome: 'Ana Souza', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  membros.criar({ nome: 'Lucas', data_nascimento: '2018-11-12', sexo: 'M', ativo: 1 });
+  membros.criar({ nome: 'Inativo', data_nascimento: '1990-11-12', sexo: 'M', ativo: 0 });
+  membros.criar({ nome: 'Outro dia', data_nascimento: '1990-11-13', sexo: 'M', ativo: 1 });
 
   const r1 = await disparo.executarCiclo({ agora: AGORA });
   assert.equal(r1.enviados, 2);
@@ -65,17 +71,17 @@ test('envia uma vez por aniversariante e pula quem já recebeu', async () => {
 });
 
 test('não envia antes do horário', async () => {
-  dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   const r = await disparo.executarCiclo({ agora: new Date(2026, 10, 12, 7, 59) });
   assert.equal(r.executado, false);
   assert.equal(enviados.length, 0);
 });
 
 test('desiste depois de 3 falhas no dia', async () => {
-  dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   falhar = true;
   for (let i = 0; i < 4; i++) await disparo.executarCiclo({ agora: AGORA });
-  const linhas = dados.getDb().prepare('SELECT status, tentativa FROM envio ORDER BY id').all();
+  const linhas = sql('SELECT status, tentativa FROM envio ORDER BY id').all();
   assert.deepEqual(
     linhas.map((l) => l.tentativa),
     [1, 2, 3],
@@ -84,27 +90,27 @@ test('desiste depois de 3 falhas no dia', async () => {
 });
 
 test('recupera depois de uma falha', async () => {
-  dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   falhar = true;
   await disparo.executarCiclo({ agora: AGORA });
   falhar = false;
   const r = await disparo.executarCiclo({ agora: AGORA });
   assert.equal(r.enviados, 1);
-  const ultimo = dados.getDb().prepare('SELECT * FROM envio ORDER BY id DESC').get();
+  const ultimo = sql('SELECT * FROM envio ORDER BY id DESC').get();
   assert.equal(ultimo.status, 'enviado');
   assert.equal(ultimo.tentativa, 2);
   assert.ok(fs.existsSync(path.join(tmp, ultimo.arquivo_arte)));
 });
 
 test('banco impede dois envios no mesmo aniversário', () => {
-  const id = dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  const id = membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   const e = { membro_id: id, data_aniversario: '2026-11-12', status: 'enviado' };
-  dados.envios.registrar(e);
-  assert.throws(() => dados.envios.registrar(e), /UNIQUE/);
+  envios.registrar(e);
+  assert.throws(() => envios.registrar(e), /UNIQUE/);
 });
 
 test('arte tem 1080×1350 mesmo sem foto e sem fundo', async () => {
-  const [template] = dados.templates.listar();
+  const [template] = templates.listar();
   const img = await gerarArte({
     membro: { nome: 'Maria Teste', data_nascimento: '1990-11-12', sexo: 'F', foto: null },
     template,
@@ -118,7 +124,7 @@ test('arte tem 1080×1350 mesmo sem foto e sem fundo', async () => {
 });
 
 test('"Enviar agora" no dia do aniversário conta como o envio do dia', async () => {
-  const id = dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  const id = membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
   const r = await disparo.enviarAgora(id, AGORA);
   assert.equal(r.ok, true);
   const ciclo = await disparo.executarCiclo({ agora: AGORA });
@@ -127,15 +133,15 @@ test('"Enviar agora" no dia do aniversário conta como o envio do dia', async ()
 });
 
 test('"Enviar agora" fora do dia é registrado como teste', async () => {
-  const id = dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-03-01', sexo: 'F', ativo: 1 });
+  const id = membros.criar({ nome: 'Ana', data_nascimento: '1996-03-01', sexo: 'F', ativo: 1 });
   await disparo.enviarAgora(id, AGORA);
-  const linha = dados.getDb().prepare('SELECT status, data_aniversario FROM envio').get();
+  const linha = sql('SELECT status, data_aniversario FROM envio').get();
   assert.deepEqual({ ...linha }, { status: 'teste', data_aniversario: '2027-03-01' });
 });
 
 test('"Enviar agora" e o ciclo nunca enviam ao mesmo tempo', async () => {
-  dados.membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
-  const id = dados.membros.criar({ nome: 'Bia', data_nascimento: '1990-11-12', sexo: 'F', ativo: 1 });
+  membros.criar({ nome: 'Ana', data_nascimento: '1996-11-12', sexo: 'F', ativo: 1 });
+  const id = membros.criar({ nome: 'Bia', data_nascimento: '1990-11-12', sexo: 'F', ativo: 1 });
   /** @type {((valor?: unknown) => void) | undefined} */
   let liberar;
   disparo.usarPausa(

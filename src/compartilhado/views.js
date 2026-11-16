@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { Eta } from 'eta';
-import { config } from '../config.js';
+import { config } from '#config';
 import * as datas from './datas.js';
 
 export const eta = new Eta({ views: path.join(config.raiz, 'views'), cache: config.producao });

@@ -1,8 +1,8 @@
 // Monitor externo no padrão "dead man's switch" (ex.: healthchecks.io).
 // Ao fim de cada ciclo o sistema avisa se está saudável. Se o aviso não chegar no prazo, ou chegar
 // como falha, o serviço externo alerta o responsável por e-mail, Telegram etc.
-import { config } from '../../config.js';
-import { logger } from '../../lib/logger.js';
+import { config } from '#config';
+import { logger } from '#compartilhado/logger.js';
 
 // Situações em que o envio do dia está comprometido e alguém precisa agir.
 const MOTIVOS_DE_FALHA = new Set(['WhatsApp desconectado', 'Grupo do WhatsApp não configurado']);

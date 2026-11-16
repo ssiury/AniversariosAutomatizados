@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: 'Templates' }) %>
+<% layout('../layout', { titulo: 'Templates' }) %>
 <h1>Templates</h1>
 <p class="sutil">Regra: template fixo do membro → infantil (abaixo da idade limite) → feminino → masculino.
   Na mensagem do WhatsApp, use <code>{nome}</code>, <code>{idade}</code>, <code>{data}</code> e <code>{ministerio}</code>.</p>

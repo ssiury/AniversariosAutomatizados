@@ -1,14 +1,17 @@
 import path from 'node:path';
 import express from 'express';
 import cookieSession from 'cookie-session';
-import { config } from './config.js';
 import { pinoHttp } from 'pino-http';
-import { logger } from './lib/logger.js';
-import { render } from './lib/views.js';
-import { getDb } from './modulos/dados/index.js';
-import { rotasAuth, exigirLogin, rotasPainel } from './modulos/painel/index.js';
-import { rotasMembros } from './modulos/membros/index.js';
-import { rotasTemplates } from './modulos/templates/index.js';
+import { config } from '#config';
+import { logger } from '#compartilhado/logger.js';
+import { render } from '#compartilhado/views.js';
+import { getDb } from '#compartilhado/banco/index.js';
+// As rotas de cada módulo só são importadas aqui, nunca pelos outros módulos.
+import { rotasAuth, exigirLogin } from '#modulos/painel/auth.js';
+import rotasPainel from '#modulos/painel/rotas.js';
+import rotasMembros from '#modulos/membros/rotas.js';
+import rotasTemplates from '#modulos/templates/rotas.js';
+import rotasConfiguracao from '#modulos/configuracao/rotas.js';
 
 export function criarApp() {
   const app = express();
@@ -74,6 +77,7 @@ export function criarApp() {
   app.use(rotasPainel);
   app.use('/membros', rotasMembros);
   app.use('/templates', rotasTemplates);
+  app.use('/configuracoes', rotasConfiguracao);
 
   app.use((_req, res) =>
     render(res, 'erro', { titulo: 'Página não encontrada', mensagem: 'O endereço não existe.' }, 404),

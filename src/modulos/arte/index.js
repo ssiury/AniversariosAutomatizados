@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { config } from '../../config.js';
-import { formatarDiaMes } from '../../lib/datas.js';
+import { config } from '#config';
+import { formatarDiaMes } from '#compartilhado/datas.js';
 
 // A VM tem 1 GB de RAM: uma imagem por vez e sem cache.
 sharp.cache(false);

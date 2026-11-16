@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: 'Dashboard' }) %>
+<% layout('../layout', { titulo: 'Dashboard' }) %>
 <% const rotuloStatus = { aguardando: 'Aguardando', enviado: 'Enviado', falhou: 'Falhou' }; %>
 <h1>Dashboard</h1>
 

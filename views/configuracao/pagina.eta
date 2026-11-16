@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: 'Configurações' }) %>
+<% layout('../layout', { titulo: 'Configurações' }) %>
 <% const c = it.cfg; const e = it.erros || {}; %>
 <h1>Configurações</h1>
 <% if (it.ok) { %><p class="alerta sucesso">Configurações salvas.</p><% } %>
@@ -6,7 +6,7 @@
 <div class="colunas">
   <section class="cartao">
     <h2>WhatsApp</h2>
-    <%~ include('./fragmento-whatsapp', { wa: it.wa }) %>
+    <%~ include('./whatsapp', { wa: it.wa }) %>
   </section>
 
   <form class="cartao pilha" method="post" action="/configuracoes">

@@ -1,2 +1,3 @@
-export { default as rotasMembros } from './rotas.js';
-export * from './servico.js';
+// API pública do módulo de membros.
+export { validar, listarDetalhado, detalhar } from './servico.js';
+export { obter, aniversariantesDoDia, contar } from './repositorio.js';

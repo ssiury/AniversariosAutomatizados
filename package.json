@@ -49,5 +49,10 @@
     "prettier": "^3.10.1",
     "supertest": "^7.3.2",
     "typescript": "^5.9.3"
+  },
+  "imports": {
+    "#config": "./src/config.js",
+    "#compartilhado/*": "./src/compartilhado/*",
+    "#modulos/*": "./src/modulos/*"
   }
 }

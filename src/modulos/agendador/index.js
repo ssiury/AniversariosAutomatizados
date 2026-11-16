@@ -1,8 +1,8 @@
-import { config } from '../../config.js';
-import { logger } from '../../lib/logger.js';
-import { executarCiclo } from '../disparo/index.js';
-import { eventos as eventosWhatsapp, status as statusWhatsapp } from '../whatsapp/index.js';
-import { reportarCiclo } from '../monitor/index.js';
+import { config } from '#config';
+import { logger } from '#compartilhado/logger.js';
+import { executarCiclo } from '#modulos/disparo/index.js';
+import { eventos as eventosWhatsapp, status as statusWhatsapp } from '#modulos/whatsapp/index.js';
+import { reportarCiclo } from '#modulos/monitor/index.js';
 
 const log = logger.child({ modulo: 'agendador' });
 

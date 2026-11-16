@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { avaliarCiclo, reportarCiclo } from '../src/modulos/monitor/index.js';
+import { avaliarCiclo, reportarCiclo } from '#modulos/monitor/index.js';
 
 const cicloOk = { executado: true, motivo: 'Ciclo concluído', enviados: 1, falhas: 0, pulados: 0 };
 

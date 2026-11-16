@@ -1,5 +1,7 @@
-import { getDb } from './index.js';
-import { ehAniversario } from '../../lib/datas.js';
+import { getDb } from '#compartilhado/banco/index.js';
+import { ehAniversario } from '#compartilhado/datas.js';
+
+/** @typedef {import('#compartilhado/tipos.js').Membro} Membro */
 
 const CAMPOS = ['nome', 'data_nascimento', 'sexo', 'ativo', 'foto', 'template_fixo_id'];
 
@@ -22,15 +24,19 @@ export function listar({ busca = '', sexo = '', situacao = '', mes = '' } = {}) 
   }
   const sql = `SELECT * FROM membro ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY nome COLLATE NOCASE`;
-  return getDb().prepare(sql).all(params);
+  return /** @type {Membro[]} */ (getDb().prepare(sql).all(params));
 }
 
+/** @returns {Membro[]} */
 export function ativos() {
-  return getDb().prepare('SELECT * FROM membro WHERE ativo = 1 ORDER BY nome COLLATE NOCASE').all();
+  return /** @type {Membro[]} */ (
+    getDb().prepare('SELECT * FROM membro WHERE ativo = 1 ORDER BY nome COLLATE NOCASE').all()
+  );
 }
 
+/** @returns {Membro | undefined} */
 export function obter(id) {
-  return getDb().prepare('SELECT * FROM membro WHERE id = ?').get(id);
+  return /** @type {Membro | undefined} */ (getDb().prepare('SELECT * FROM membro WHERE id = ?').get(id));
 }
 
 export function criar(dados) {
@@ -59,15 +65,18 @@ export function remover(id) {
   getDb().prepare('DELETE FROM membro WHERE id = ?').run(id);
 }
 
+/** @returns {{ ativos: number, inativos: number }} */
 export function contar() {
-  return getDb()
-    .prepare(
-      `SELECT
+  return /** @type {{ ativos: number, inativos: number }} */ (
+    getDb()
+      .prepare(
+        `SELECT
       COALESCE(SUM(ativo = 1), 0) AS ativos,
       COALESCE(SUM(ativo = 0), 0) AS inativos
     FROM membro`,
-    )
-    .get();
+      )
+      .get()
+  );
 }
 
 /** Membros ativos que fazem aniversário na data (considera 29/02 em ano não bissexto). */

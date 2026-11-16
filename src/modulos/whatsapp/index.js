@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import QRCode from 'qrcode';
-import { config } from '../../config.js';
-import { logger as raiz } from '../../lib/logger.js';
+import { config } from '#config';
+import { logger as raiz } from '#compartilhado/logger.js';
 
 export const eventos = new EventEmitter();
 

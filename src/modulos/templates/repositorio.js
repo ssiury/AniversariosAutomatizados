@@ -1,14 +1,18 @@
-import { getDb } from './index.js';
+import { getDb } from '#compartilhado/banco/index.js';
+
+/** @typedef {import('#compartilhado/tipos.js').Template} Template */
 
 const CAMPOS = ['nome', 'fundo', 'cor_destaque', 'mensagem_arte', 'legenda'];
 const ORDEM = "CASE tipo WHEN 'masculino' THEN 1 WHEN 'feminino' THEN 2 ELSE 3 END";
 
+/** @returns {Template[]} */
 export function listar() {
-  return getDb().prepare(`SELECT * FROM template ORDER BY ${ORDEM}`).all();
+  return /** @type {Template[]} */ (getDb().prepare(`SELECT * FROM template ORDER BY ${ORDEM}`).all());
 }
 
+/** @returns {Template | undefined} */
 export function obter(id) {
-  return getDb().prepare('SELECT * FROM template WHERE id = ?').get(id);
+  return /** @type {Template | undefined} */ (getDb().prepare('SELECT * FROM template WHERE id = ?').get(id));
 }
 
 export function atualizar(id, dados) {

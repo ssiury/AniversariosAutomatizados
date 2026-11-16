@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { config } from '../config.js';
+import { config } from '#config';
 
 /**
  * Logger único da aplicação: JSON estruturado em uma linha por evento, pronto para `docker compose logs`.

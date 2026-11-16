@@ -8,8 +8,11 @@ import request from 'supertest';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aniv-http-'));
 process.env.STORAGE_DIR = tmp;
 
-const dados = await import('../src/modulos/dados/index.js');
-const { criarApp } = await import('../src/app.js');
+const banco = await import('#compartilhado/banco/index.js');
+const membros = await import('#modulos/membros/repositorio.js');
+const templates = await import('#modulos/templates/repositorio.js');
+const configuracao = await import('#modulos/configuracao/repositorio.js');
+const { criarApp } = await import('../../src/app.js');
 
 /** @type {import('express').Express} */
 let app;
@@ -17,13 +20,13 @@ let app;
 let logado;
 
 before(async () => {
-  dados.abrir(':memory:');
+  banco.abrir(':memory:');
   app = criarApp();
   logado = request.agent(app);
   await logado.post('/login').type('form').send({ usuario: 'admin', senha: 'admin' }).expect(302);
 });
 after(() => {
-  dados.fechar();
+  banco.fechar();
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -70,19 +73,19 @@ test('cadastro de membro: valida, cria, lista e exclui', async () => {
     .send({ nome: 'Ana Teste', data_nascimento: '1990-05-10', sexo: 'F', ativo: 'on' })
     .expect(302);
   const id = Number(r.headers.location.match(/\/membros\/(\d+)/)[1]);
-  assert.equal(dados.membros.obter(id).nome, 'Ana Teste');
+  assert.equal(membros.obter(id).nome, 'Ana Teste');
 
   const linhas = await logado.get('/membros?busca=Ana').set('HX-Request', 'true').expect(200);
   assert.match(linhas.text, /Ana Teste/);
   assert.doesNotMatch(linhas.text, /<html/, 'requisição htmx recebe só o fragmento');
 
   await logado.post(`/membros/${id}/excluir`).expect(302);
-  assert.equal(dados.membros.obter(id), undefined);
+  assert.equal(membros.obter(id), undefined);
   await logado.get(`/membros/${id}`).expect(404);
 });
 
 test('prévia da arte é gerada como JPEG', async () => {
-  const [template] = dados.templates.listar();
+  const [template] = templates.listar();
   await logado.get(`/templates/${template.id}/previa.jpg?w=200`).expect(200).expect('Content-Type', /jpeg/);
 });
 
@@ -97,8 +100,8 @@ test('configurações: rejeita valores inválidos e salva os válidos', async ()
     .type('form')
     .send({ horario_envio: '09:30', idade_limite_infantil: '10', nome_ministerio: 'Mídia', envio_ativo: 'on' })
     .expect(302);
-  assert.equal(dados.configuracao.obter('horario_envio'), '09:30');
-  assert.equal(dados.configuracao.obter('idade_limite_infantil'), '10');
+  assert.equal(configuracao.obter('horario_envio'), '09:30');
+  assert.equal(configuracao.obter('idade_limite_infantil'), '10');
 });
 
 test('sessão do WhatsApp e banco nunca são servidos', async () => {

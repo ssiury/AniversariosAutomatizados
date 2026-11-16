@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { membros as repo, templates as repoTemplates, configuracao } from '../dados/index.js';
-import { gerarArte, miniatura, salvarImagem, removerArquivo } from '../arte/index.js';
-import { enviarAgora } from '../disparo/index.js';
-import { upload } from '../../lib/upload.js';
-import { render, ehHtmx } from '../../lib/views.js';
-import { hojeISO } from '../../lib/datas.js';
+import * as templates from '#modulos/templates/index.js';
+import * as configuracao from '#modulos/configuracao/index.js';
+import * as disparo from '#modulos/disparo/index.js';
+import { gerarArte, miniatura, salvarImagem, removerArquivo } from '#modulos/arte/index.js';
+import { upload } from '#compartilhado/upload.js';
+import { render, ehHtmx } from '#compartilhado/views.js';
+import { hojeISO } from '#compartilhado/datas.js';
+import * as repo from './repositorio.js';
 import { validar, listarDetalhado, detalhar } from './servico.js';
 
 const rotas = Router();
@@ -25,14 +27,14 @@ rotas.get('/', (req, res) => {
     mes: String(req.query.mes ?? ''),
   };
   const lista = listarDetalhado(filtros);
-  render(res, ehHtmx(req) ? 'membros-linhas' : 'membros-lista', { lista, filtros });
+  render(res, ehHtmx(req) ? 'membros/linhas' : 'membros/lista', { lista, filtros });
 });
 
 rotas.get('/novo', (_req, res) => {
-  render(res, 'membros-form', {
+  render(res, 'membros/formulario', {
     membro: { ativo: 1 },
     erros: {},
-    templates: repoTemplates.listar(),
+    templates: templates.listar(),
     novo: true,
   });
 });
@@ -51,7 +53,7 @@ async function salvarFoto(req, id, fotoAtual) {
 rotas.post('/', upload.single('foto'), async (req, res) => {
   const { dados, erros } = validar(req.body);
   if (Object.keys(erros).length) {
-    return render(res, 'membros-form', { membro: dados, erros, templates: repoTemplates.listar(), novo: true }, 422);
+    return render(res, 'membros/formulario', { membro: dados, erros, templates: templates.listar(), novo: true }, 422);
   }
   const id = repo.criar(dados);
   try {
@@ -63,10 +65,10 @@ rotas.post('/', upload.single('foto'), async (req, res) => {
 });
 
 rotas.get('/:id', carregar, (req, res) => {
-  render(res, 'membros-form', {
+  render(res, 'membros/formulario', {
     membro: detalhar(req.membro),
     erros: {},
-    templates: repoTemplates.listar(),
+    templates: templates.listar(),
     novo: false,
     ok: req.query.ok,
     aviso: req.query.aviso,
@@ -78,11 +80,11 @@ rotas.post('/:id', carregar, upload.single('foto'), async (req, res) => {
   if (Object.keys(erros).length) {
     return render(
       res,
-      'membros-form',
+      'membros/formulario',
       {
         membro: { ...req.membro, ...dados },
         erros,
-        templates: repoTemplates.listar(),
+        templates: templates.listar(),
         novo: false,
       },
       422,
@@ -94,11 +96,11 @@ rotas.post('/:id', carregar, upload.single('foto'), async (req, res) => {
     erros.foto = 'Não foi possível ler a imagem enviada.';
     return render(
       res,
-      'membros-form',
+      'membros/formulario',
       {
         membro: { ...req.membro, ...dados },
         erros,
-        templates: repoTemplates.listar(),
+        templates: templates.listar(),
         novo: false,
       },
       422,
@@ -132,8 +134,8 @@ rotas.get('/:id/previa.jpg', carregar, async (req, res, next) => {
 });
 
 rotas.post('/:id/enviar', carregar, async (req, res) => {
-  const r = await enviarAgora(req.membro.id);
-  render(res, 'fragmento-resultado', {
+  const r = await disparo.enviarAgora(req.membro.id);
+  render(res, 'parciais/resultado', {
     ok: r.ok,
     mensagem: r.ok ? `Arte enviada para o grupo (template ${r.template?.nome}).` : `Falha no envio: ${r.erro}`,
   });

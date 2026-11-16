@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: it.novo ? 'Novo membro' : it.membro.nome }) %>
+<% layout('../layout', { titulo: it.novo ? 'Novo membro' : it.membro.nome }) %>
 <% const m = it.membro; const e = it.erros || {}; %>
 <p><a href="/membros">← Membros</a></p>
 <h1><%= it.novo ? 'Novo membro' : m.nome %></h1>

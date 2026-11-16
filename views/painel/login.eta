@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: 'Entrar' }) %>
+<% layout('../layout', { titulo: 'Entrar' }) %>
 <div class="login">
   <h1>🎂 Aniversários</h1>
   <p class="sutil">Ministério de Mídia</p>

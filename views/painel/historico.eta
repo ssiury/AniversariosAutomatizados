@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: 'Histórico' }) %>
+<% layout('../layout', { titulo: 'Histórico' }) %>
 <h1>Histórico de envios</h1>
 <form class="filtros" method="get" action="/historico">
   <select name="status" onchange="this.form.submit()">

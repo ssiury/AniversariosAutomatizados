@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { escolherTemplate, montarLegenda } from '../src/modulos/templates/regra.js';
+import { escolherTemplate, montarLegenda } from '#modulos/templates/regra.js';
 
 const templates = [
   { id: 1, tipo: 'masculino', legenda: '' },

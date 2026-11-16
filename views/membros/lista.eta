@@ -1,4 +1,4 @@
-<% layout('./layout', { titulo: 'Membros' }) %>
+<% layout('../layout', { titulo: 'Membros' }) %>
 <div class="titulo-acoes">
   <h1>Membros</h1>
   <a class="botao" href="/membros/novo">+ Novo membro</a>
@@ -30,6 +30,6 @@
 <div class="tabela-rolavel">
 <table class="membros">
   <thead><tr><th>Nome</th><th>Nascimento</th><th>Idade</th><th>Sexo</th><th>Ativo</th><th>Template</th></tr></thead>
-  <tbody id="linhas"><%~ include('./membros-linhas', it) %></tbody>
+  <tbody id="linhas"><%~ include('./linhas', it) %></tbody>
 </table>
 </div>

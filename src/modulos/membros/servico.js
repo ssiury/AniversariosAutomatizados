@@ -1,6 +1,6 @@
-import { membros as repo, templates as repoTemplates } from '../dados/index.js';
-import { criarResolvedor } from '../templates/index.js';
-import { hojeISO, idadeEm, proximoAniversario, dataValida, diasEntre } from '../../lib/datas.js';
+import * as templates from '#modulos/templates/index.js';
+import { hojeISO, idadeEm, proximoAniversario, dataValida, diasEntre } from '#compartilhado/datas.js';
+import * as repo from './repositorio.js';
 
 /** Valida o formulário e devolve { dados, erros }. */
 export function validar(corpo = {}) {
@@ -21,7 +21,7 @@ export function validar(corpo = {}) {
   let templateFixoId = null;
   if (templateFixo) {
     templateFixoId = Number(templateFixo);
-    if (!repoTemplates.obter(templateFixoId)) erros.template_fixo_id = 'Template inválido.';
+    if (!templates.obter(templateFixoId)) erros.template_fixo_id = 'Template inválido.';
   }
 
   return {
@@ -38,11 +38,11 @@ export function validar(corpo = {}) {
 
 /** Lista com campos calculados: idade, próximo aniversário, dias até ele e template que vai receber. */
 export function listarDetalhado(filtros = {}, hoje = hojeISO()) {
-  const resolver = criarResolvedor();
+  const resolver = templates.criarResolvedor();
   return repo.listar(filtros).map((m) => detalhar(m, hoje, resolver));
 }
 
-export function detalhar(m, hoje = hojeISO(), resolver = criarResolvedor()) {
+export function detalhar(m, hoje = hojeISO(), resolver = templates.criarResolvedor()) {
   const proximo = proximoAniversario(m.data_nascimento, hoje);
   return {
     ...m,

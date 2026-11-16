@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { carregarConfig, verificarConfig } from '../src/config.js';
+import { carregarConfig, verificarConfig } from '#config';
 
 test('desenvolvimento funciona sem nenhuma variável', () => {
   const { erros } = verificarConfig(carregarConfig({}));

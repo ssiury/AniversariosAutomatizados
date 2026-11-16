@@ -1,4 +1,6 @@
-import { getDb } from './index.js';
+import { getDb } from '#compartilhado/banco/index.js';
+
+/** @typedef {{ n: number }} Contagem */
 
 export function registrar(envio) {
   const r = getDb()
@@ -20,13 +22,17 @@ export function jaEnviado(membroId, dataISO) {
     .get(membroId, dataISO);
 }
 
+/** @returns {number} */
 export function contarFalhas(membroId, dataISO) {
-  return getDb()
-    .prepare(
-      `SELECT COUNT(*) AS n FROM envio
+  const linha = /** @type {Contagem} */ (
+    getDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM envio
     WHERE membro_id = ? AND data_aniversario = ? AND status = 'falhou'`,
-    )
-    .get(membroId, dataISO).n;
+      )
+      .get(membroId, dataISO)
+  );
+  return linha.n;
 }
 
 /** 'enviado', 'falhou' (com o número de falhas) ou 'aguardando'. */
@@ -47,7 +53,9 @@ export function ultimos(limite = 5) {
 
 export function listar({ status = '', pagina = 1, porPagina = 50 } = {}) {
   const filtro = ['enviado', 'falhou', 'teste'].includes(status) ? 'WHERE e.status = @status' : '';
-  const total = getDb().prepare(`SELECT COUNT(*) AS n FROM envio e ${filtro}`).get({ status }).n;
+  const { n: total } = /** @type {Contagem} */ (
+    getDb().prepare(`SELECT COUNT(*) AS n FROM envio e ${filtro}`).get({ status })
+  );
   const linhas = getDb()
     .prepare(`${SELECT_COMPLETO} ${filtro} ORDER BY e.id DESC LIMIT @lim OFFSET @off`)
     .all({ status, lim: porPagina, off: (pagina - 1) * porPagina });

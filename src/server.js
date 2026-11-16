@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { config, validarConfig } from './config.js';
-import { logger } from './lib/logger.js';
-import { abrir, fechar } from './modulos/dados/index.js';
-import * as whatsapp from './modulos/whatsapp/index.js';
-import * as agendador from './modulos/agendador/index.js';
+import { config, validarConfig } from '#config';
+import { logger } from '#compartilhado/logger.js';
+import { abrir, fechar } from '#compartilhado/banco/index.js';
+import * as whatsapp from '#modulos/whatsapp/index.js';
+import * as agendador from '#modulos/agendador/index.js';
 import { criarApp } from './app.js';
 
 const log = logger.child({ modulo: 'servidor' });

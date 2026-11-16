@@ -1,25 +1,13 @@
 import { Router } from 'express';
-import { templates as repo, configuracao } from '../dados/index.js';
-import { gerarArte, miniatura, salvarImagem, removerArquivo, LARGURA, ALTURA } from '../arte/index.js';
-import { upload } from '../../lib/upload.js';
-import { render } from '../../lib/views.js';
-import { hojeISO, partes, pad } from '../../lib/datas.js';
+import * as configuracao from '#modulos/configuracao/index.js';
+import { gerarArte, miniatura, salvarImagem, removerArquivo, LARGURA, ALTURA } from '#modulos/arte/index.js';
+import { upload } from '#compartilhado/upload.js';
+import { render } from '#compartilhado/views.js';
+import { hojeISO } from '#compartilhado/datas.js';
+import * as repo from './repositorio.js';
+import { validar, membroExemplo } from './servico.js';
 
 const rotas = Router();
-
-const EXEMPLOS = {
-  masculino: { nome: 'João Exemplo da Silva', sexo: 'M', idade: 30 },
-  feminino: { nome: 'Maria Exemplo da Silva', sexo: 'F', idade: 28 },
-  infantil: { nome: 'Pedrinho Exemplo', sexo: 'M', idade: 7 },
-};
-
-/** Membro fictício que faz aniversário hoje, usado na prévia do template. */
-export function membroExemplo(tipo, hoje = hojeISO()) {
-  const e = EXEMPLOS[tipo] ?? EXEMPLOS.masculino;
-  const { a, m, d } = partes(hoje);
-  const dia = m === 2 && d === 29 ? 28 : d;
-  return { id: 0, nome: e.nome, sexo: e.sexo, foto: null, data_nascimento: `${a - e.idade}-${pad(m)}-${pad(dia)}` };
-}
 
 function carregar(req, res, next) {
   const t = Number.isInteger(Number(req.params.id)) ? repo.obter(Number(req.params.id)) : null;
@@ -29,25 +17,13 @@ function carregar(req, res, next) {
 }
 
 rotas.get('/', (req, res) => {
-  render(res, 'templates', { lista: repo.listar(), ok: req.query.ok, erro: req.query.erro });
+  render(res, 'templates/lista', { lista: repo.listar(), ok: req.query.ok, erro: req.query.erro });
 });
 
 rotas.post('/:id', carregar, upload.single('fundo'), async (req, res) => {
   const t = req.template;
   const corpo = req.body ?? {};
-  const cor = String(corpo.cor_destaque ?? '');
-  const dados = {
-    nome: String(corpo.nome ?? '').trim() || t.nome,
-    cor_destaque: /^#[0-9a-f]{6}$/i.test(cor) ? cor.toLowerCase() : t.cor_destaque,
-    mensagem_arte: String(corpo.mensagem_arte ?? '')
-      .split(/\r?\n/)
-      .slice(0, 2)
-      .join('\n')
-      .trim(),
-    legenda: String(corpo.legenda ?? '')
-      .replace(/\r\n/g, '\n')
-      .trim(),
-  };
+  const dados = validar(corpo, t);
   try {
     if (req.file) {
       dados.fundo = await salvarImagem(req.file.buffer, 'fundos', `${t.tipo}-${Date.now()}`, {

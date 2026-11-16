@@ -1,18 +1,19 @@
-import { membros, envios, configuracao } from '../dados/index.js';
-import { listarDetalhado } from '../membros/servico.js';
-import * as whatsapp from '../whatsapp/index.js';
-import { hojeISO, horaMinuto, partes, somarDias } from '../../lib/datas.js';
+import * as membros from '#modulos/membros/index.js';
+import * as configuracao from '#modulos/configuracao/index.js';
+import * as disparo from '#modulos/disparo/index.js';
+import * as whatsapp from '#modulos/whatsapp/index.js';
+import { hojeISO, horaMinuto, partes, somarDias } from '#compartilhado/datas.js';
 
 export function montarDashboard(agora = new Date()) {
   const hoje = hojeISO(agora);
   const cfg = configuracao.todas();
-  const ativos = listarDetalhado({ situacao: 'ativo' }, hoje);
+  const ativos = membros.listarDetalhado({ situacao: 'ativo' }, hoje);
 
   const deHoje = ativos
     .filter((m) => m.dias_ate === 0)
     .map((m) => ({
       ...m,
-      situacao: envios.situacaoDoDia(m.id, hoje),
+      situacao: disparo.situacaoDoDia(m.id, hoje),
     }));
   const proximos7 = ativos.filter((m) => m.dias_ate >= 1 && m.dias_ate <= 7).sort((a, b) => a.dias_ate - b.dias_ate);
   const mesAtual = partes(hoje).m;
@@ -44,6 +45,6 @@ export function montarDashboard(agora = new Date()) {
       proximoEnvio,
       envioAtivo: cfg.envio_ativo === '1',
     },
-    ultimos: envios.ultimos(5),
+    ultimos: disparo.ultimosEnvios(5),
   };
 }

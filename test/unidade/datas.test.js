@@ -9,7 +9,7 @@ import {
   diasEntre,
   somarDias,
   formatarDiaMes,
-} from '../src/lib/datas.js';
+} from '#compartilhado/datas.js';
 
 test('idade em anos completos', () => {
   assert.equal(idadeEm('2000-11-12', '2026-11-12'), 26);

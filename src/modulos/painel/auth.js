@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { Router } from 'express';
-import { config } from '../../config.js';
-import { render } from '../../lib/views.js';
+import { config } from '#config';
+import { render } from '#compartilhado/views.js';
 
 const hash = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const igual = (a, b) => crypto.timingSafeEqual(hash(a), hash(b));
@@ -23,13 +23,13 @@ export const rotasAuth = Router();
 
 rotasAuth.get('/login', (req, res) => {
   if (req.session?.usuario) return res.redirect('/');
-  render(res, 'login', { erro: null });
+  render(res, 'painel/login', { erro: null });
 });
 
 rotasAuth.post('/login', (req, res) => {
   const ip = req.ip;
   if (bloqueado(ip)) {
-    return render(res, 'login', { erro: 'Muitas tentativas. Aguarde alguns minutos.' }, 429);
+    return render(res, 'painel/login', { erro: 'Muitas tentativas. Aguarde alguns minutos.' }, 429);
   }
   const { usuario = '', senha = '' } = req.body ?? {};
   if (igual(usuario, config.adminUsuario) && igual(senha, config.adminSenha)) {
@@ -38,7 +38,7 @@ rotasAuth.post('/login', (req, res) => {
     return res.redirect('/');
   }
   registrarErro(ip);
-  render(res, 'login', { erro: 'Usuário ou senha inválidos.' }, 401);
+  render(res, 'painel/login', { erro: 'Usuário ou senha inválidos.' }, 401);
 });
 
 rotasAuth.post('/logout', (req, res) => {

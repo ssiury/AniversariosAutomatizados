@@ -1,4 +1,4 @@
-import { idadeEm, formatarDiaMes } from '../../lib/datas.js';
+import { idadeEm, formatarDiaMes } from '#compartilhado/datas.js';
 
 /**
  * Escolhe o template do membro para o aniversário em `dataAniversario`.
