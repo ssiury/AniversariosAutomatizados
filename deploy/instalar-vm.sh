@@ -24,5 +24,12 @@ sudo timedatectl set-timezone America/Sao_Paulo || true
 mkdir -p storage
 # O container roda como o usuário "node" (uid 1000).
 sudo chown -R 1000:1000 storage
-sudo docker compose up -d --build
+# Usa a imagem publicada pelo CI. Se ela não estiver acessível (pacote privado sem
+# "docker login ghcr.io", ou CI ainda não rodou), compila na própria VM.
+if sudo docker compose pull app; then
+  sudo docker compose up -d
+else
+  echo "Imagem do GHCR indisponível: compilando na VM (pode levar alguns minutos)."
+  sudo docker compose up -d --build
+fi
 echo "Pronto. Acesse https://$(grep ^DOMINIO= .env | cut -d= -f2)"
