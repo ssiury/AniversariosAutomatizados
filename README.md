@@ -1,7 +1,5 @@
 # Aniversários Automatizados — Ministério de Mídia
 
-[![CI](https://github.com/ssiury/AniversariosAutomatizados/actions/workflows/ci.yml/badge.svg)](https://github.com/ssiury/AniversariosAutomatizados/actions/workflows/ci.yml)
-
 Sistema que, no dia do aniversário de cada membro, gera uma arte personalizada (com foto, nome e
 mensagem) e a posta no grupo do WhatsApp do ministério. Inclui um painel web para cadastrar membros,
 editar os 3 templates de arte, acompanhar o histórico de envios e configurar o WhatsApp.
@@ -16,7 +14,7 @@ A arquitetura completa (decisões, módulos, modelo de dados, fluxos, segurança
 - **SQLite** (`better-sqlite3`) com migrações `.sql` versionadas, e a pasta `storage/` para as imagens.
 - **WhatsApp embutido** com [Baileys](https://github.com/WhiskeySockets/Baileys) (conexão por QR Code).
 - **Artes** geradas com [sharp](https://sharp.pixelplumbing.com) (JPEG 1080×1350).
-- **Docker + Caddy** na VM e2-micro gratuita do Google Cloud, com HTTPS automático e imagem publicada pelo CI.
+- **Docker + Caddy** na VM e2-micro gratuita do Google Cloud, com HTTPS automático e imagem compilada na própria VM.
 - **Monitoramento** por healthchecks.io e **backup** diário enviado para fora da VM.
 
 ## Módulos (`src/modulos/`)
@@ -70,7 +68,7 @@ Acesse <http://localhost:3000> (em desenvolvimento, usuário `admin` e senha `ad
 
 | Comando                  | O que faz                                                  |
 | ------------------------ | ---------------------------------------------------------- |
-| `npm run verificar`      | Tudo o que o CI roda: lint, formatação, tipos e testes     |
+| `npm run verificar`      | Lint, formatação, tipos e testes: rode antes de cada push  |
 | `npm test`               | Testes (`node:test`)                                       |
 | `npm run test:cobertura` | Testes com relatório de cobertura                          |
 | `npm run lint`           | ESLint, incluindo as regras de fronteira entre módulos     |
@@ -90,35 +88,26 @@ Para mudar o banco, crie o próximo arquivo em `src/compartilhado/banco/migracoe
 1. Crie uma VM **e2-micro** em `us-west1`, `us-central1` ou `us-east1` (regiões gratuitas), com Debian 12
    e disco padrão de 30 GB. Libere as portas 80 e 443 no firewall ("Permitir tráfego HTTP/HTTPS").
 2. Aponte um domínio para o IP externo da VM (um subdomínio gratuito do DuckDNS funciona).
-3. Se o pacote da imagem no GitHub for privado, autentique a VM no GHCR com um token que tenha
-   apenas `read:packages`:
-
-   ```bash
-   echo "$TOKEN" | sudo docker login ghcr.io -u ssiury --password-stdin
-   ```
-
-4. Na VM:
+3. Na VM:
 
    ```bash
    git clone git@github.com:ssiury/AniversariosAutomatizados.git
    cd AniversariosAutomatizados
    bash deploy/instalar-vm.sh     # cria swap, instala Docker e gera o .env
    nano .env                      # defina ADMIN_SENHA, SESSAO_SEGREDO, DOMINIO e MONITOR_URL
-   bash deploy/instalar-vm.sh     # baixa a imagem e sobe app + Caddy
+   bash deploy/instalar-vm.sh     # compila a imagem e sobe app + Caddy
    ```
 
-5. Entre no painel, vá em **Configurações**, escaneie o QR Code com o WhatsApp que vai postar,
+4. Entre no painel, vá em **Configurações**, escaneie o QR Code com o WhatsApp que vai postar,
    escolha o grupo, o horário e salve.
 
 ### Atualização e rollback
 
-Cada push na `main` que passa no CI publica a imagem `ghcr.io/ssiury/aniversariosautomatizados`
-com as tags `latest` e `sha-<commit>`.
+O script baixa o código do GitHub, compila a imagem na VM e espera o healthcheck.
 
 ```bash
-bash deploy/atualizar.sh               # última versão
-bash deploy/atualizar.sh sha-1a2b3c4   # versão específica (rollback)
-bash deploy/atualizar.sh --build       # compila na própria VM, sem CI
+bash deploy/atualizar.sh            # última versão da main
+bash deploy/atualizar.sh 1a2b3c4    # um commit específico (rollback)
 ```
 
 ### Monitoramento

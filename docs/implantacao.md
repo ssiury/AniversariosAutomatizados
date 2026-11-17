@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Sistema** | Aniversários Automatizados — Ministério de Mídia |
-| **Versão do documento** | 1.0 |
+| **Versão do documento** | 1.1 |
 | **Última revisão** | 16/11/2026 |
 | **Público** | Quem vai criar e manter a infraestrutura |
 | **Tempo estimado** | 1 a 2 horas, na primeira vez |
@@ -16,7 +16,7 @@
 
 1. [Visão geral](#1-visão-geral)
 2. [Pré-requisitos](#2-pré-requisitos)
-3. [GitHub: imagem e acesso](#3-github-imagem-e-acesso)
+3. [GitHub: acesso ao repositório](#3-github-acesso-ao-repositório)
 4. [Projeto no Google Cloud](#4-projeto-no-google-cloud)
 5. [Rede: firewall e IP fixo](#5-rede-firewall-e-ip-fixo)
 6. [Conta de serviço e bucket de backup](#6-conta-de-serviço-e-bucket-de-backup)
@@ -87,7 +87,7 @@ três gratuitas.
 | --- | --- |
 | Conta Google | Será a dona do projeto. De preferência, uma conta do ministério e não pessoal |
 | Cartão de crédito | Exigido pelo Google para ativar o faturamento, mesmo na camada gratuita |
-| Acesso ao repositório no GitHub | Com permissão para ver Actions e Packages |
+| Acesso ao repositório no GitHub | Com permissão para clonar |
 | Celular com o WhatsApp que vai publicar | De preferência um número dedicado (ver risco R-01 na arquitetura) |
 | Google Cloud CLI (`gcloud`) | Instalado no seu computador, ou use o **Cloud Shell** no navegador, que já vem com ele |
 
@@ -107,36 +107,14 @@ export BUCKET=aniversarios-midia-backup  # nome do bucket (único no Google Clou
 
 ---
 
-## 3. GitHub: imagem e acesso
+## 3. GitHub: acesso ao repositório
 
-A VM não compila a aplicação: ela baixa a imagem que o CI publica no GitHub Container Registry
-(GHCR). Por isso, o primeiro passo é garantir que a imagem existe.
+A VM clona o repositório e compila a imagem Docker ela mesma, com a ajuda do swap de 2 GB. Antes de
+começar, confira que a versão a implantar está na branch `main` do GitHub e que `npm run verificar`
+passa no seu computador.
 
-### 3.1 Publicar a imagem
-
-1. Faça o merge do código na branch `main` e envie para o GitHub (`git push origin main`).
-2. Em **GitHub → repositório → Actions**, aguarde o workflow **CI** terminar com sucesso. O job
-   **Imagem Docker** publica `ghcr.io/ssiury/aniversariosautomatizados:latest`.
-3. Confira em **GitHub → seu perfil → Packages** que o pacote `aniversariosautomatizados` aparece.
-
-> [!NOTE]
-> Se o job falhar com erro de permissão ao publicar, vá em **Settings → Actions → General →
-> Workflow permissions** e marque **Read and write permissions**.
-
-### 3.2 Token de leitura da imagem
-
-O pacote herda a visibilidade do repositório. Se o repositório for **privado**, a VM precisa de um
-token para baixar a imagem:
-
-1. GitHub → **Settings → Developer settings → Personal access tokens → Tokens (classic)
-   → Generate new token (classic)**.
-2. Nome: `aniversarios-vm-ghcr`. Validade: a maior disponível. Escopo: **apenas `read:packages`**.
-3. Guarde o token: ele será usado na seção [10.3](#103-autenticação-no-ghcr).
-
-### 3.3 Chave de leitura do repositório
-
-A VM precisa clonar o repositório para obter o `docker-compose.yml`, o `Caddyfile` e os scripts. Se
-o repositório for privado, ela vai usar uma **deploy key** (somente leitura). A chave é gerada na
+A VM precisa clonar o repositório para obter o código, o `docker-compose.yml`, o `Caddyfile` e os
+scripts. Se o repositório for privado, ela vai usar uma **deploy key** (somente leitura). A chave é gerada na
 VM, na seção [9.3](#93-acesso-ao-repositório).
 
 ---
@@ -445,27 +423,16 @@ Salve com `Ctrl+O`, `Enter` e saia com `Ctrl+X`. Proteja o arquivo:
 chmod 600 .env
 ```
 
-### 10.3 Autenticação no GHCR
-
-Só se o pacote for privado (seção 3.2). Cole o token quando o terminal pedir:
-
-```bash
-read -rs TOKEN && echo "$TOKEN" | sudo docker login ghcr.io -u ssiury --password-stdin; unset TOKEN
-```
-
-Sem esse login, o instalador não consegue baixar a imagem e compila a aplicação na própria VM,
-o que funciona, mas leva vários minutos.
-
-### 10.4 Subir a aplicação
+### 10.3 Subir a aplicação
 
 ```bash
 bash deploy/instalar-vm.sh
 ```
 
-Agora o script baixa a imagem do GHCR e sobe a aplicação e o Caddy. Se a imagem não estiver
-acessível, ele compila na própria VM (alguns minutos, com o swap).
+Agora o script compila a imagem e sobe a aplicação e o Caddy. Na primeira vez leva alguns minutos,
+porque a VM tem pouca memória e usa o swap. As próximas compilações aproveitam o cache do Docker.
 
-### 10.5 Conferir
+### 10.4 Conferir
 
 ```bash
 sudo docker compose ps                    # app deve estar "healthy" e caddy "running"
@@ -625,7 +592,7 @@ Todos os comandos rodam na VM, dentro de `~/AniversariosAutomatizados`.
 | Tarefa | Comando |
 | --- | --- |
 | Atualizar para a última versão | `bash deploy/atualizar.sh` |
-| Voltar para uma versão anterior | `bash deploy/atualizar.sh sha-1a2b3c4` (tags em GitHub → Packages) |
+| Voltar para uma versão anterior | `bash deploy/atualizar.sh 1a2b3c4` (commits em `git log --oneline`) |
 | Ver o estado dos contêineres | `sudo docker compose ps` |
 | Ver os logs da aplicação | `sudo docker compose logs -f --tail=100 app` |
 | Ver só os erros | `sudo docker compose logs app \| grep '"level":50'` |
@@ -642,7 +609,6 @@ Todos os comandos rodam na VM, dentro de `~/AniversariosAutomatizados`.
 | Ao receber alerta do healthchecks.io | Ver os logs e o painel "Saúde do sistema" |
 | Mensalmente | Conferir o relatório de faturamento e o espaço em disco |
 | A cada 3 meses | Testar a restauração de um backup (seção 13.5) |
-| Quando o token do GHCR expirar | Gerar outro e repetir a seção 10.3 |
 
 ---
 
@@ -669,7 +635,7 @@ Todos os comandos rodam na VM, dentro de `~/AniversariosAutomatizados`.
 | Erro de certificado / Caddy não obtém HTTPS | Domínio errado no `.env` ou porta 80 bloqueada | `sudo docker compose logs caddy`. Corrija o `DOMINIO` e rode `sudo docker compose up -d` |
 | `app` não fica `healthy` | Configuração inválida | `sudo docker compose logs app`: a primeira linha diz qual variável está errada |
 | `permission denied` ao gravar em `storage/` | Dono errado da pasta | `sudo chown -R 1000:1000 storage` |
-| `docker compose pull` falha com `denied` | Pacote privado sem login, ou token expirado | Repita a seção 10.3 |
+| Compilação da imagem lenta ou interrompida | Pouca memória durante o build | Confira o swap com `swapon --show` e rode `bash deploy/atualizar.sh` de novo |
 | `git pull` falha no `atualizar.sh` | Deploy key ausente ou removida | Repita a seção 9.3 |
 | O backup não sobe para o bucket | Conta de serviço sem permissão, ou rclone sem configuração | `rclone lsd gcs:<bucket>`. Revise as seções 6.2 e 13.1 |
 | healthchecks.io em **Down** | WhatsApp desconectado, grupo não configurado ou processo parado | Abra o painel e veja "Saúde do sistema"; depois os logs |
