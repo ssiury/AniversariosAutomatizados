@@ -1,0 +1,17 @@
+{
+  // Checagem de tipos do JavaScript via JSDoc (tsc --noEmit). Nada é compilado.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.js", "test/**/*.js", "src/**/*.d.ts"]
+}

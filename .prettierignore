@@ -1,0 +1,7 @@
+node_modules/
+storage/
+backups/
+coverage/
+package-lock.json
+views/
+docs/

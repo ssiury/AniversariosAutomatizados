@@ -2,14 +2,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
-import pino from 'pino';
 import QRCode from 'qrcode';
-import { config } from '../../config.js';
+import { config } from '#config';
+import { logger as raiz } from '#compartilhado/logger.js';
 
 export const eventos = new EventEmitter();
 
 const dirSessao = () => path.join(config.storage, 'whatsapp');
-const logger = pino({ level: process.env.WHATSAPP_LOG || 'warn' });
+// O Baileys é muito verboso: tem nível de log próprio (WHATSAPP_LOG).
+const logger = raiz.child({ modulo: 'whatsapp' }, { level: config.whatsappLog });
 
 let sock = null;
 let baileys = null;
@@ -65,7 +66,7 @@ export async function iniciar() {
       Object.assign(estado, { conectado: true, conectando: false, qr: null, erro: null });
       estado.numero = atual.user?.id?.split(':')[0]?.split('@')[0] ?? null;
       tentativasReconexao = 0;
-      logger.info('WhatsApp conectado');
+      raiz.info({ modulo: 'whatsapp', numero: estado.numero }, 'WhatsApp conectado');
       eventos.emit('conectado');
     }
     if (u.connection === 'close') {
@@ -76,7 +77,13 @@ export async function iniciar() {
       if (deslogado) limparSessao();
       tentativasReconexao += 1;
       const espera = Math.min(60_000, 2_000 * tentativasReconexao);
-      setTimeout(() => iniciar().catch((e) => { estado.erro = e.message; }), deslogado ? 1_000 : espera);
+      setTimeout(
+        () =>
+          iniciar().catch((e) => {
+            estado.erro = e.message;
+          }),
+        deslogado ? 1_000 : espera,
+      );
     }
   });
 }
@@ -90,8 +97,24 @@ function exigirConexao() {
   if (!sock || !estado.conectado) throw new Error('WhatsApp não está conectado');
 }
 
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+const aleatorio = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+
+/** Mostra "digitando…" no grupo por alguns segundos, como uma pessoa faria. Falha aqui não impede o envio. */
+async function simularDigitacao(jid) {
+  try {
+    await sock.sendPresenceUpdate('composing', jid);
+    await esperar(aleatorio(3_000, 6_000));
+    await sock.sendPresenceUpdate('paused', jid);
+  } catch (e) {
+    logger.warn({ err: e }, 'Não foi possível mostrar "digitando"');
+  }
+}
+
 /** Envia uma imagem com legenda. Retorna o ID da mensagem. */
 export async function enviarImagem(jid, imagem, legenda) {
+  exigirConexao();
+  await simularDigitacao(jid);
   exigirConexao();
   const msg = await sock.sendMessage(jid, { image: imagem, caption: legenda, mimetype: 'image/jpeg' });
   return msg?.key?.id ?? null;

@@ -1,7 +1,7 @@
-node_modules
-storage
-.env
-.git
-test
-docs
-*.log
+# Só entra no contexto de build o que a imagem usa.
+*
+!package.json
+!package-lock.json
+!src/
+!views/
+!public/

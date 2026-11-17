@@ -1,0 +1,69 @@
+<% layout('../layout', { titulo: 'Configurações' }) %>
+<% const h = it.h; const c = it.cfg; const e = it.erros || {}; %>
+<% const invalido = (campo) => (e[campo] ? 'aria-invalid="true"' : ''); %>
+<div class="cabecalho">
+  <div>
+    <p class="sobretitulo">Sistema</p>
+    <h1>Configurações</h1>
+    <p class="subtitulo">Conexão com o WhatsApp e regras do envio automático.</p>
+  </div>
+</div>
+
+<% if (it.ok) { %><p class="alerta ok" role="status" style="margin-bottom: 20px"><%~ h.icone('circle-check') %><span>Configurações salvas.</span></p><% } %>
+
+<div class="grade-config">
+  <%~ include('./whatsapp', { wa: it.wa, h }) %>
+
+  <section class="cartao">
+    <div class="cartao-cabecalho"><h2>Envio automático</h2></div>
+    <form class="formulario" method="post" action="/configuracoes">
+      <label class="interruptor">
+        <input type="checkbox" name="envio_ativo" <%= c.envio_ativo === '1' ? 'checked' : '' %>>
+        <span><b class="so-ligado">Ligado</b><b class="so-desligado">Desligado</b><span class="ajuda">Desligue para pausar os envios sem perder as configurações.</span></span>
+      </label>
+      <div class="duas-colunas">
+        <div class="campo"><label for="horario_envio">Horário do envio</label>
+          <input id="horario_envio" class="entrada-hora" type="time" name="horario_envio" value="<%= c.horario_envio %>" required <%~ invalido('horario_envio') %>>
+          <% if (e.horario_envio) { %><span class="ajuda erro"><%= e.horario_envio %></span><% } %>
+        </div>
+        <div class="campo"><label for="idade_limite_infantil">Arte infantil abaixo de</label>
+          <div class="sufixo">
+            <input id="idade_limite_infantil" type="number" name="idade_limite_infantil" min="1" max="18" value="<%= c.idade_limite_infantil %>" required <%~ invalido('idade_limite_infantil') %>>
+            <span>anos</span>
+          </div>
+          <% if (e.idade_limite_infantil) { %><span class="ajuda erro"><%= e.idade_limite_infantil %></span><% } %>
+        </div>
+      </div>
+      <div class="campo"><label for="grupo_whatsapp">Grupo de destino</label>
+        <% if (it.grupos.length) { %>
+          <select id="grupo_whatsapp" name="grupo_whatsapp">
+            <option value="">Escolha um grupo</option>
+            <% for (const g of it.grupos) { %>
+              <option value="<%= g.id %>" <%= g.id === c.grupo_whatsapp ? 'selected' : '' %>><%= g.nome %></option>
+            <% } %>
+          </select>
+        <% } else { %>
+          <input id="grupo_whatsapp" value="<%= c.grupo_whatsapp_nome || c.grupo_whatsapp || 'Nenhum grupo escolhido' %>" disabled>
+          <span class="ajuda"><%= it.erroGrupos ? 'Erro ao listar os grupos: ' + it.erroGrupos : 'Conecte o WhatsApp para trocar o grupo.' %></span>
+        <% } %>
+      </div>
+      <div class="campo"><label for="nome_ministerio">Nome do ministério</label>
+        <input id="nome_ministerio" name="nome_ministerio" value="<%= c.nome_ministerio %>" required maxlength="80" <%~ invalido('nome_ministerio') %>>
+        <% if (e.nome_ministerio) { %><span class="ajuda erro"><%= e.nome_ministerio %></span><% } else { %><span class="ajuda">Aparece na arte e na variável {ministerio} da mensagem.</span><% } %>
+      </div>
+      <div class="barra-salvar inicio"><button class="botao primario">Salvar configurações</button></div>
+    </form>
+  </section>
+</div>
+
+<section class="faixa-escura">
+  <span class="confete" aria-hidden="true" style="width: 10px; height: 10px; background: #F3C26B; top: 22px; left: 70%; transform: rotate(20deg)"></span>
+  <span class="confete" aria-hidden="true" style="width: 7px; height: 14px; background: #8E7FF2; top: 68%; left: 82%; transform: rotate(-25deg)"></span>
+  <span class="confete" aria-hidden="true" style="width: 8px; height: 8px; background: #6FCF9F; top: 30%; left: 92%; transform: rotate(40deg)"></span>
+  <div>
+    <h2>Disparo manual</h2>
+    <p>O sistema confere os aniversariantes a cada 15 minutos depois do horário configurado. Rode um ciclo agora para enviar sem esperar. Quem já recebeu hoje não recebe de novo.</p>
+    <div id="resultado-ciclo" class="resultado" aria-live="polite"></div>
+  </div>
+  <button class="botao claro" hx-post="/configuracoes/ciclo" hx-target="#resultado-ciclo" hx-disabled-elt="this"><%~ h.icone('play') %>Rodar ciclo agora</button>
+</section>

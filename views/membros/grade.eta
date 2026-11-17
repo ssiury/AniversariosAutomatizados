@@ -1,0 +1,37 @@
+<% const h = it.h; %>
+<% if (it.htmx) { %>
+  <% /* Contagens dos chips atualizadas junto com a grade (swap out-of-band). */ %>
+  <b id="conta-todos" hx-swap-oob="true"><%= it.contagem.todos %></b>
+  <% for (const tipo of ['masculino', 'feminino', 'infantil']) { %><b id="conta-<%= tipo %>" hx-swap-oob="true"><%= it.contagem[tipo] %></b><% } %>
+<% } %>
+<% for (const m of it.lista) { %>
+  <article class="cartao cartao-membro<%= m.ativo ? '' : ' inativo' %>">
+    <% if (m.dias_ate === 0) { %>
+      <span class="pilula sol fita"><%~ h.icone('cake') %>Hoje</span>
+    <% } else if (m.ativo && m.dias_ate <= 7) { %>
+      <span class="pilula acento fita"><%= m.dias_ate === 1 ? 'Amanhã' : `Em ${m.dias_ate} dias` %></span>
+    <% } %>
+    <div class="membro-topo">
+      <span class="avatar grande" style="--cor: <%= m.template?.cor_destaque ?? '' %>"><% if (m.foto) { %><img src="/storage/<%= m.foto %>" alt="" loading="lazy"><% } else { %><%= h.iniciais(m.nome) %><% } %></span>
+      <div class="quem">
+        <a href="/membros/<%= m.id %>"><%= m.nome %></a>
+        <span><%= h.formatarDiaMes(m.data_nascimento) %> · <%= m.idade %> anos</span>
+      </div>
+    </div>
+    <div class="sutil pequeno">Nasceu em <%= h.formatarBR(m.data_nascimento) %></div>
+    <div class="membro-rodape">
+      <span class="pilula neutro"><span class="quadradinho" style="background: <%= m.template?.cor_destaque ?? '' %>"></span><%= m.template?.nome %><%= m.template_fixo_id ? ' · fixo' : '' %></span>
+      <span class="pilula <%= m.ativo ? 'ok' : 'neutro' %>"><span class="ponto"></span><%= m.ativo ? 'Ativo' : 'Inativo' %></span>
+      <a href="/membros/<%= m.id %>" class="botao-icone" aria-label="Editar <%= m.nome %>" title="Editar"><%~ h.icone('ellipsis') %></a>
+    </div>
+  </article>
+<% } %>
+<% if (!it.lista.length && (it.filtros.busca || it.filtros.template || it.filtros.situacao || it.filtros.mes)) { %>
+  <div class="vazio" style="grid-column: 1 / -1"><%~ h.icone('search') %>Nenhum membro encontrado com esses filtros.</div>
+<% } else { %>
+  <a href="/membros/novo" class="cartao-adicionar">
+    <span class="icone-caixa"><%~ h.icone('plus') %></span>
+    <b>Adicionar membro</b>
+    <span class="sutil pequeno">Nome, data de nascimento e foto</span>
+  </a>
+<% } %>

@@ -1,0 +1,98 @@
+<% layout('../layout', { titulo: 'Templates' }) %>
+<% const h = it.h; const t = it.t; %>
+<% const descricao = { masculino: `Homens a partir de ${it.idadeLimite} anos`, feminino: `Mulheres a partir de ${it.idadeLimite} anos`, infantil: `Abaixo de ${it.idadeLimite} anos` }; %>
+<div class="cabecalho">
+  <div>
+    <p class="sobretitulo">Personalização</p>
+    <h1>Templates</h1>
+    <p class="subtitulo">Cor, fundo e textos das três artes de aniversário.</p>
+  </div>
+</div>
+
+<nav class="seletor-templates" aria-label="Escolher template">
+  <% for (const op of it.lista) { %>
+    <a href="/templates?t=<%= op.id %>" class="opcao-template" <%~ op.id === t.id ? 'aria-current="page"' : '' %>>
+      <img src="/templates/<%= op.id %>/previa.jpg?w=160&v=<%= Date.now() %>" alt="" loading="lazy">
+      <span><b><%= op.nome %></b><span class="descricao"><%= descricao[op.tipo] %></span></span>
+    </a>
+  <% } %>
+</nav>
+
+<div class="ordem">
+  <span class="rotulo">Ordem de escolha</span>
+  <span class="passo"><i>1</i>Template fixo do membro</span><%~ h.icone('chevron-right') %>
+  <span class="passo"><i>2</i>Infantil</span><%~ h.icone('chevron-right') %>
+  <span class="passo"><i>3</i>Feminino</span><%~ h.icone('chevron-right') %>
+  <span class="passo"><i>4</i>Masculino</span>
+</div>
+
+<div class="grade-editor">
+  <section class="cartao previa-template" aria-label="Pré-visualização">
+    <p class="sobretitulo">Pré-visualização</p>
+    <img src="/templates/<%= t.id %>/previa.jpg?w=520&v=<%= Date.now() %>" alt="Prévia do template <%= t.nome %>">
+    <div class="conversa">
+      <span class="grupo"><%~ h.icone('message-square') %><%= it.grupo %></span>
+      <div class="balao"><%~ h.formatarWhatsapp(it.legenda) %><time><%= it.agora %></time></div>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <div class="cartao-cabecalho"><h2><%= t.nome %></h2><span class="pilula neutro">1080 × 1350 px</span></div>
+    <div class="pilha">
+      <% if (it.ok) { %><p class="alerta ok" role="status"><%~ h.icone('circle-check') %><span><%= it.ok === 'restaurado' ? 'Template restaurado para o padrão.' : 'Template salvo.' %></span></p><% } %>
+      <% if (it.erro) { %><p class="alerta falha" role="alert"><%~ h.icone('circle-alert') %><span>Não foi possível ler a imagem de fundo.</span></p><% } %>
+
+      <form id="form-template" class="formulario" method="post" action="/templates/<%= t.id %>" enctype="multipart/form-data">
+        <div class="campo"><label for="nome">Nome no painel</label>
+          <input id="nome" name="nome" value="<%= t.nome %>" required maxlength="60">
+        </div>
+
+        <div class="campo">
+          <span class="rotulo" id="rotulo-cor">Cor de destaque</span>
+          <div class="paleta" role="group" aria-labelledby="rotulo-cor">
+            <% for (const cor of it.cores) { %>
+              <button class="cor" type="button" data-cor="<%= cor %>" style="background: <%= cor %>" aria-label="Cor <%= cor.toUpperCase() %>" aria-pressed="<%= cor === t.cor_destaque.toLowerCase() ? 'true' : 'false' %>"></button>
+            <% } %>
+            <label class="outra-cor" title="Outra cor"><%~ h.icone('plus') %><input type="color" value="<%= t.cor_destaque %>" data-seletor-cor aria-label="Escolher outra cor"></label>
+            <label class="oculto-visual" for="cor_destaque">Código da cor</label>
+            <input id="cor_destaque" class="hex" name="cor_destaque" value="<%= t.cor_destaque.toUpperCase() %>" pattern="#[0-9A-Fa-f]{6}" maxlength="7" required>
+          </div>
+        </div>
+
+        <div class="campo">
+          <span class="rotulo">Fundo</span>
+          <label class="soltar">
+            <span class="icone-caixa"><%~ h.icone('upload') %></span>
+            <span class="texto"><b data-arquivo><%= t.fundo ? 'Usando um fundo personalizado' : 'Usando o fundo padrão' %></b><span class="ajuda">Arraste uma imagem PNG ou JPG de 1080 × 1350 px</span></span>
+            <span class="botao secundario pequeno">Escolher</span>
+            <input type="file" name="fundo" accept="image/*" aria-label="Imagem de fundo">
+          </label>
+          <% if (t.fundo) { %>
+            <label class="interruptor compacto" style="margin-top: 6px"><input type="checkbox" name="remover_fundo"><span>Voltar ao fundo padrão</span></label>
+          <% } %>
+        </div>
+
+        <div class="campo"><label for="mensagem_arte">Frase da arte</label>
+          <textarea id="mensagem_arte" name="mensagem_arte" rows="2" maxlength="80"><%= t.mensagem_arte %></textarea>
+          <span class="ajuda">Até 2 linhas.</span>
+        </div>
+
+        <div class="campo"><label for="legenda">Mensagem do WhatsApp</label>
+          <textarea id="legenda" name="legenda" rows="5" maxlength="1000"><%= t.legenda %></textarea>
+          <div class="variaveis">
+            <span class="ajuda">Inserir:</span>
+            <% for (const v of ['nome', 'idade', 'data', 'ministerio']) { %><button class="variavel" type="button" data-variavel="{<%= v %>}" data-alvo="legenda">{<%= v %>}</button><% } %>
+          </div>
+          <span class="ajuda">*texto* fica em negrito no WhatsApp.</span>
+        </div>
+      </form>
+
+      <div class="barra-salvar">
+        <form method="post" action="/templates/<%= t.id %>/restaurar" onsubmit="return confirm('Restaurar nome, cor e textos deste template para o padrão? O fundo é mantido.')">
+          <button class="botao secundario">Restaurar padrão</button>
+        </form>
+        <button class="botao primario" form="form-template">Salvar template</button>
+      </div>
+    </div>
+  </section>
+</div>

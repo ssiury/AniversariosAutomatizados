@@ -1,0 +1,100 @@
+<% layout('../layout', { titulo: it.novo ? 'Novo membro' : it.membro.nome }) %>
+<% const h = it.h; const m = it.membro; const e = it.erros || {}; %>
+<% const invalido = (campo) => (e[campo] ? 'aria-invalid="true"' : ''); %>
+
+<div class="cabecalho">
+  <div>
+    <a class="voltar" href="/membros"><%~ h.icone('arrow-left') %>Membros</a>
+    <h1><%= it.novo ? 'Novo membro' : m.nome %></h1>
+    <p class="subtitulo"><%= it.novo ? 'Preencha os dados para incluir o membro nos envios automáticos.' : 'Dados do membro e prévia da próxima arte.' %></p>
+  </div>
+</div>
+
+<div class="pilha">
+  <% if (it.ok) { %><p class="alerta ok" role="status"><%~ h.icone('circle-check') %><span><%= it.ok === 'criado' ? 'Membro cadastrado.' : 'Alterações salvas.' %></span></p><% } %>
+  <% if (it.aviso === 'foto') { %><p class="alerta falha" role="alert"><%~ h.icone('circle-alert') %><span>Membro salvo, mas a foto não pôde ser lida.</span></p><% } %>
+
+  <div class="grade-membro">
+    <form class="cartao formulario" method="post" enctype="multipart/form-data" action="<%= it.novo ? '/membros' : '/membros/' + m.id %>">
+      <div class="secao">
+        <h3>Dados pessoais</h3>
+        <div class="campo"><label for="nome">Nome completo</label>
+          <input id="nome" name="nome" value="<%= m.nome || '' %>" required maxlength="120" <%~ invalido('nome') %>>
+          <% if (e.nome) { %><span class="ajuda erro"><%= e.nome %></span><% } %>
+        </div>
+        <div class="duas-colunas">
+          <div class="campo"><label for="data_nascimento">Data de nascimento</label>
+            <input id="data_nascimento" type="date" name="data_nascimento" value="<%= m.data_nascimento || '' %>" required min="1900-01-01" <%~ invalido('data_nascimento') %>>
+            <% if (e.data_nascimento) { %><span class="ajuda erro"><%= e.data_nascimento %></span><% } else { %><span class="ajuda">Com o ano: a idade decide a arte infantil.</span><% } %>
+          </div>
+          <fieldset class="campo">
+            <legend>Sexo</legend>
+            <div class="segmentado">
+              <label><input type="radio" name="sexo" value="M" <%= m.sexo === 'M' ? 'checked' : '' %> required>Masculino</label>
+              <label><input type="radio" name="sexo" value="F" <%= m.sexo === 'F' ? 'checked' : '' %>>Feminino</label>
+            </div>
+            <% if (e.sexo) { %><span class="ajuda erro"><%= e.sexo %></span><% } %>
+          </fieldset>
+        </div>
+      </div>
+
+      <div class="secao">
+        <h3>Foto</h3>
+        <div class="foto-campo">
+          <span class="avatar enorme" style="--cor: <%= m.template?.cor_destaque ?? '' %>"><% if (m.foto) { %><img src="/storage/<%= m.foto %>" alt="Foto de <%= m.nome %>"><% } else { %><%= h.iniciais(m.nome) %><% } %></span>
+          <label class="soltar">
+            <span class="icone-caixa"><%~ h.icone('upload') %></span>
+            <span class="texto"><b data-arquivo><%= m.foto ? 'Trocar a foto' : 'Enviar uma foto' %></b><span class="ajuda">Arraste ou escolha JPG, PNG ou HEIC, até 10 MB</span></span>
+            <span class="botao secundario pequeno">Escolher</span>
+            <input type="file" name="foto" accept="image/*" aria-label="Foto do membro">
+          </label>
+        </div>
+        <% if (e.foto) { %><span class="ajuda erro"><%= e.foto %></span><% } else if (!m.foto) { %><span class="ajuda">Sem foto, a arte mostra as iniciais.</span><% } %>
+        <% if (m.foto) { %>
+          <label class="interruptor compacto"><input type="checkbox" name="remover_foto"><span>Remover a foto atual</span></label>
+        <% } %>
+      </div>
+
+      <div class="secao">
+        <h3>Envio</h3>
+        <label class="interruptor">
+          <input type="checkbox" name="ativo" <%= m.ativo ? 'checked' : '' %>>
+          <span><b class="so-ligado">Ativo</b><b class="so-desligado">Inativo</b><span class="ajuda">Membros ativos recebem a arte no grupo no dia do aniversário.</span></span>
+        </label>
+        <div class="campo"><label for="template_fixo_id">Template</label>
+          <select id="template_fixo_id" name="template_fixo_id">
+            <option value="">Automático, pela idade e pelo sexo</option>
+            <% for (const t of it.templates) { %>
+              <option value="<%= t.id %>" <%= m.template_fixo_id === t.id ? 'selected' : '' %>>Sempre <%= t.nome %></option>
+            <% } %>
+          </select>
+          <% if (e.template_fixo_id) { %><span class="ajuda erro"><%= e.template_fixo_id %></span><% } %>
+        </div>
+      </div>
+
+      <div class="barra-salvar">
+        <a class="botao secundario" href="/membros">Cancelar</a>
+        <button class="botao primario"><%= it.novo ? 'Cadastrar membro' : 'Salvar alterações' %></button>
+      </div>
+    </form>
+
+    <% if (!it.novo) { %>
+    <section class="cartao previa-template fixo-no-topo" aria-label="Prévia da arte">
+      <p class="sobretitulo">Próxima arte</p>
+      <img src="/membros/<%= m.id %>/previa.jpg?w=520&v=<%= Date.now() %>" alt="Prévia da arte de <%= m.nome %>">
+      <div class="acoes" style="justify-content: center">
+        <span class="pilula neutro"><span class="quadradinho" style="background: <%= m.template?.cor_destaque ?? '' %>"></span><%= m.template?.nome %></span>
+        <span class="pilula <%= m.dias_ate === 0 ? 'sol' : 'acento' %>"><%~ h.icone('calendar-days') %><%= h.formatarDiaMes(m.proximo_aniversario) %> · <%= m.dias_ate === 0 ? 'hoje' : m.dias_ate === 1 ? 'amanhã' : `em ${m.dias_ate} dias` %></span>
+      </div>
+      <div class="acoes" style="justify-content: center">
+        <button class="botao escuro" hx-post="/membros/<%= m.id %>/enviar" hx-target="#resultado-envio"
+          hx-confirm="Enviar a arte de <%= m.nome %> para o grupo agora?" hx-disabled-elt="this"><%~ h.icone('send') %>Enviar agora</button>
+        <form method="post" action="/membros/<%= m.id %>/excluir" onsubmit="return confirm('Excluir este membro e o histórico de envios dele?')">
+          <button class="botao perigo"><%~ h.icone('trash-2') %>Excluir</button>
+        </form>
+      </div>
+      <div id="resultado-envio" class="resultado" aria-live="polite" style="width: 100%"></div>
+    </section>
+    <% } %>
+  </div>
+</div>
