@@ -7,8 +7,8 @@ x-logging: &logging
 
 services:
   app:
-    # Imagem publicada pelo CI. Para gerar localmente: docker compose up -d --build
-    image: ghcr.io/ssiury/aniversariosautomatizados:${TAG:-latest}
+    # A imagem é compilada na própria máquina: docker compose up -d --build
+    image: aniversarios:local
     build: .
     restart: unless-stopped
     env_file: .env

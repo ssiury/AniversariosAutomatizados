@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Sistema** | Aniversários Automatizados — Ministério de Mídia |
-| **Versão do documento** | 1.3 |
+| **Versão do documento** | 1.4 |
 | **Última revisão** | 16/11/2026 |
 | **Autor** | Iury Sousa dos Santos |
 | **Status** | Vigente |
@@ -185,24 +185,26 @@ Cada decisão segue o formato contexto → decisão → consequências.
 - **Contexto:** HTTPS obrigatório, sem custo e com pouca configuração.
 - **Decisão:** dois contêineres, a aplicação e o Caddy como proxy reverso, que emite e renova o
   certificado Let's Encrypt automaticamente.
-- **Consequências:** o deploy se resume a baixar a imagem e subir os contêineres.
+- **Consequências:** o deploy se resume a compilar a imagem e subir os contêineres.
 
 ### DA-08 — Fronteiras entre módulos verificadas pelo lint
 
 - **Contexto:** num monólito, a modularidade se perde aos poucos se nada a protege.
 - **Decisão:** cada módulo expõe só o seu `index.js`. Regras `no-restricted-imports` do ESLint
-  barram, no CI, imports de internals de outro módulo, caminhos relativos entre pastas e
+  barram, no lint, imports de internals de outro módulo, caminhos relativos entre pastas e
   dependências de `compartilhado/` para `modulos/`.
-- **Consequências:** a arquitetura descrita neste documento é verificada a cada push, e não só
-  combinada entre as pessoas.
+- **Consequências:** a arquitetura descrita neste documento é verificada pelo `npm run verificar`,
+  e não só combinada entre as pessoas.
 
-### DA-09 — Imagem compilada no CI e publicada no GHCR
+### DA-09 — Imagem compilada na própria VM, sem CI
 
-- **Contexto:** compilar módulos nativos numa VM de 1 GB exige swap e leva minutos.
-- **Decisão:** o GitHub Actions compila a imagem e a publica no GitHub Container Registry com as
-  tags `latest` e `sha-<commit>`. A VM só baixa a imagem.
-- **Consequências:** deploy rápido e reproduzível, com rollback por tag. A compilação na VM fica
-  como alternativa.
+- **Contexto:** um pipeline de CI no GitHub Actions depende da conta do GitHub estar liberada para
+  rodar jobs, o que é uma dependência externa a mais para um projeto pequeno.
+- **Decisão:** não há CI. As verificações rodam localmente com `npm run verificar` antes de cada
+  push, e a VM compila a imagem a partir do código da `main`, com 2 GB de swap.
+- **Consequências:** nenhuma dependência de serviços pagos ou de registro de imagens. O deploy leva
+  alguns minutos a mais, e o rollback é feito por commit. A disciplina de rodar as verificações
+  fica com quem faz o push.
 
 ### DA-10 — Monitoramento por "dead man's switch"
 
@@ -221,8 +223,7 @@ Cada decisão segue o formato contexto → decisão → consequências.
 flowchart TB
     navegador(["Navegador do operador"])
     wa[("Servidores do WhatsApp")]
-    gh["GitHub Actions<br/>lint · tipos · testes · build"]
-    ghcr[("GHCR<br/>imagem latest / sha-*")]
+    gh[("GitHub<br/>repositório · branch main")]
     hc["healthchecks.io<br/>alerta por e-mail/Telegram"]
     nuvem[("Armazenamento externo<br/>rclone (ex.: bucket GCS)")]
 
@@ -235,8 +236,7 @@ flowchart TB
         backups[("./backups<br/>30 dias")]
     end
 
-    gh -- "push na main" --> ghcr
-    ghcr -- "deploy/atualizar.sh" --> app
+    gh -- "deploy/atualizar.sh<br/>git pull + docker build" --> app
     navegador -- "HTTPS 443" --> caddy
     caddy -- "HTTP · app:3000" --> app
     app -- "volume" --- storage
@@ -720,7 +720,7 @@ O indicador do WhatsApp no topo aparece em todas as páginas (estado em `res.loc
 | SQL injection | Todas as consultas usam parâmetros nomeados (prepared statements) |
 | Escalada no contêiner | Usuário sem privilégios (`node`), sistema de arquivos somente leitura, `cap_drop: ALL` e `no-new-privileges` |
 | Configuração insegura | A inicialização falha com valores inválidos e avisa sobre senha curta, segredo curto, cookie sem HTTPS e ausência de monitor |
-| Dependências vulneráveis | Dependabot semanal para npm e mensal para Docker e Actions. O Baileys é atualizado só manualmente |
+| Dependências vulneráveis | `npm audit` e atualização manual periódica. O Baileys é atualizado só depois de testar o envio de verdade |
 
 ---
 
@@ -741,7 +741,7 @@ O indicador do WhatsApp no topo aparece em todas as páginas (estado em `res.loc
 
 - O sharp processa uma imagem por vez, sem cache.
 - O heap do Node é limitado a 384 MB, e o contêiner, a 600 MB. O Caddy usa até 128 MB.
-- Com a imagem vinda do CI, a VM não compila nada. O swap de 2 GB só é necessário para compilar localmente.
+- A VM compila a imagem a cada atualização. O swap de 2 GB garante memória para o build.
 
 ### 12.3 Ciclo de vida do processo
 
@@ -776,25 +776,22 @@ Configuração sugerida no healthchecks.io: período de 15 minutos e tolerância
   e suba novamente. As artes geradas não entram no backup, porque podem ser regeradas. A sessão do
   WhatsApp também não entra: depois de uma restauração em outra máquina, basta ler o QR Code de novo.
 
-### 12.6 Entrega contínua e atualização
+### 12.6 Entrega e atualização
 
 ```mermaid
 flowchart LR
-    push["push / PR"] --> verificar["lint · formatação ·<br/>tipos · testes + cobertura"]
-    verificar --> build["build da imagem"]
-    build -- "só na main" --> ghcr[("GHCR<br/>latest · sha-*")]
-    ghcr --> vm["VM: deploy/atualizar.sh"]
+    local["npm run verificar<br/>lint · formatação · tipos · testes"] --> push["push na main"]
+    push --> vm["VM: deploy/atualizar.sh"]
+    vm --> build["git pull + docker build"]
 ```
 
 ```bash
-bash deploy/atualizar.sh               # última versão da main
-bash deploy/atualizar.sh sha-1a2b3c4   # versão específica (rollback)
-bash deploy/atualizar.sh --build       # compila na VM, sem CI
+bash deploy/atualizar.sh            # última versão da main
+bash deploy/atualizar.sh 1a2b3c4    # um commit específico (rollback)
 ```
 
-O script atualiza o repositório, baixa a imagem, sobe os contêineres e espera o healthcheck. As
-migrações do banco rodam automaticamente na inicialização. Se o pacote no GHCR for privado, a VM
-precisa de um `docker login ghcr.io` com um token de leitura de pacotes.
+O script atualiza o repositório, compila a imagem, sobe os contêineres e espera o healthcheck. As
+migrações do banco rodam automaticamente na inicialização.
 
 ---
 
@@ -842,7 +839,7 @@ Ficam na tabela `configuracao` e podem ser alteradas em `/configuracoes`, sem re
 
 ### 14.1 Verificações automáticas
 
-Todas rodam no CI a cada push e pull request, e localmente com `npm run verificar`.
+Todas rodam localmente com `npm run verificar`, que deve passar antes de cada push.
 
 | Verificação | Ferramenta | Comando |
 | --- | --- | --- |
@@ -850,7 +847,7 @@ Todas rodam no CI a cada push e pull request, e localmente com `npm run verifica
 | Formatação | Prettier | `npm run format:check` |
 | Tipos | TypeScript em modo `checkJs`, via JSDoc, sem compilar nada | `npm run typecheck` |
 | Testes e cobertura | `node:test` | `npm test` · `npm run test:cobertura` |
-| Build da imagem | Docker Buildx | CI |
+| Build da imagem | Docker | `docker compose build` |
 
 A checagem de tipos aproveita os tipos do Express, do better-sqlite3 e do Node, e os typedefs das
 linhas do banco em `compartilhado/tipos.js`. Isso pega erros de tipo sem migrar o projeto para
@@ -913,7 +910,6 @@ mesma arte duas vezes no grupo. Agora os dois compartilham uma trava (ver [§9.3
 | **Ciclo** | Uma execução do disparo, que avalia e envia as artes pendentes do dia |
 | **Dead man's switch** | Monitoramento em que o sistema avisa periodicamente que está vivo; a ausência do aviso gera alerta |
 | **Envio** | Registro de uma tentativa de postagem (`enviado`, `falhou` ou `teste`) |
-| **GHCR** | GitHub Container Registry, onde o CI publica a imagem Docker |
 | **JID** | Identificador de um contato ou grupo no WhatsApp (por exemplo, `1203…@g.us`) |
 | **Legenda** | Texto da mensagem do WhatsApp que acompanha a arte |
 | **Migração** | Arquivo `.sql` numerado que evolui o esquema do banco de uma versão para a próxima |
