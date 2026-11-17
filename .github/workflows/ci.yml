@@ -53,7 +53,7 @@ jobs:
             type=sha,prefix=sha-
       # Em PRs só confere que a imagem compila; no push para a main, publica no GHCR.
       # A VM baixa a imagem pronta em vez de compilar com 1 GB de RAM.
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
